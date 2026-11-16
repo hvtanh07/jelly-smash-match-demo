@@ -53,9 +53,9 @@ details b{color:var(--fg);font-weight:600}
     </label>
     <label for="rule">Slot đầy
       <select id="rule">
+        <option value="discard">Mất lượt cannon</option>
         <option value="queue">Xếp hàng chờ</option>
         <option value="merge">Gộp vào cannon cùng màu</option>
-        <option value="discard">Mất lượt cannon</option>
       </select>
     </label>
     <span class="spacer"></span>
@@ -84,7 +84,7 @@ details b{color:var(--fg);font-weight:600}
       <li><b>Tăng tốc:</b> khi khung target nhìn thấy còn dưới 8 khối, hoặc grid chỉ phủ dưới 4 hàng của khung, grid đi xuống nhanh gấp 5 cho đến khi đủ. Khi hàng trên cùng của level đã lộ ra thì không tăng tốc nữa. Không tăng tốc khi khối thấp nhất đã cách vạch đỏ từ 2 hàng trở xuống.</li>
       <li><b>Luôn có nước đi tốt:</b> board luôn có ít nhất 1 lần swap tạo hàng 3 của một màu đang có ở hàng dưới cùng của target grid. Khi thiếu, game đổi màu vài khối mới đang rơi vào (không thấy được); nếu vẫn thiếu thì đổi màu vài khối trên board, các khối này lóe sáng.</li>
       <li><b>Màu khối mới:</b> theo tỉ lệ màu ở hàng dưới cùng của target grid (luật spawn của GDD), trộn thêm một phần ngẫu nhiên để board không bị một màu.</li>
-      <li><b>Cannon kẹt:</b> cannon còn đạn nhưng hàng đầu không có màu của nó sẽ đứng chờ trong slot, không có cách bỏ. Hết slot trống thì cannon mới xử lý theo lựa chọn "Slot đầy".</li>
+      <li><b>Cannon kẹt:</b> cannon còn đạn nhưng hàng đầu không có màu của nó sẽ đứng chờ trong slot, không có cách bỏ. Hết slot trống thì cannon mới xử lý theo lựa chọn "Slot đầy", mặc định là mất lượt (match vẫn phá khối trên board nhưng không sinh cannon).</li>
       <li><b>Màu đã hết trên target:</b> match màu đó không sinh cannon, cannon đang chờ màu đó tự biến mất.</li>
     </ul>
   </details>
@@ -133,8 +133,8 @@ const stageEl=document.getElementById('stage');
 const lvlSel=document.getElementById('lvl'),ruleSel=document.getElementById('rule');
 const ov=document.getElementById('ov'),ovTitle=document.getElementById('ovTitle'),ovText=document.getElementById('ovText');
 LEVELS.forEach((L,i)=>{const o=document.createElement('option');o.value=i;o.textContent=String(i+1);lvlSel.appendChild(o)});
-let rule=store.get('rule','queue'); if(!['queue','merge','discard'].includes(rule)) rule='queue'; ruleSel.value=rule;
-ruleSel.addEventListener('change',()=>{rule=ruleSel.value;store.set('rule',rule)});
+let rule=store.get('rule2','discard'); if(!['queue','merge','discard'].includes(rule)) rule='discard'; ruleSel.value=rule;
+ruleSel.addEventListener('change',()=>{rule=ruleSel.value;store.set('rule2',rule)});
 lvlSel.addEventListener('change',()=>loadLevel(+lvlSel.value));
 document.getElementById('restart').addEventListener('click',()=>loadLevel(G.level));
 document.getElementById('ovRetry').addEventListener('click',()=>loadLevel(G.level));

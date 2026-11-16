@@ -17,7 +17,7 @@ Board luôn có ít nhất 1 swap tạo hàng 3 của một màu ở hàng dư�
 
 Target grid: level 1 9×16, level 2 10×20, level 3 11×24, level 4 12×28 (cột × hàng). Board match-3 vẫn 7×7.
 
-Toàn bộ game nằm trong `index.html` (canvas, không cần build). Thanh chọn trên đầu cho đổi luật khi slot đầy. Cannon kẹt (còn đạn, không có mục tiêu) đứng chờ, không có cách bỏ.
+Toàn bộ game nằm trong `index.html` (canvas, không cần build). Thanh chọn trên đầu cho đổi luật khi slot đầy (mặc định: mất lượt cannon). Cannon kẹt (còn đạn, không có mục tiêu) đứng chờ, không có cách bỏ.
 
 ## Bot playtest
 
