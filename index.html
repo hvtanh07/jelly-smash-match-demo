@@ -79,7 +79,7 @@ details b{color:var(--fg);font-weight:600}
     <ul>
       <li><b>Board:</b> đổi chỗ 2 khối jelly cạnh nhau (kéo hoặc chạm lần lượt). Chỉ đổi khi tạo được hàng 3+ cùng màu, nếu không khối trượt về chỗ cũ. Khối rơi xuống, khối mới rơi từ trên vào, có combo dây chuyền.</li>
       <li><b>Cannon:</b> mỗi nhóm match sinh 1 cannon cùng màu vào 1 slot trống trong hàng 5 slot. Đạn = n, n là số khối của nhóm (nhóm chữ L/T gộp thành một). Match 3 cho 3 đạn, match 5 cho 5 đạn.</li>
-      <li><b>Bắn:</b> cannon chỉ bắn khối cùng màu ở hàng đầu (khối thấp nhất của mỗi cột) và đang nằm trong khung nhìn thấy, từ trái sang phải, không bắn xuyên. Không có mục tiêu thì chờ. Bắn hết đạn thì cannon biến mất.</li>
+      <li><b>Bắn:</b> cannon chỉ bắn khối cùng màu ở hàng đầu (khối thấp nhất của mỗi cột) và đang nằm trong khung nhìn thấy, không bắn xuyên. Khối thấp nhất được bắn trước, cùng độ cao thì từ trái sang phải. Không có mục tiêu thì chờ. Bắn hết đạn thì cannon biến mất.</li>
       <li><b>Target grid:</b> bắt đầu trượt xuống ở lần swap đầu tiên. Chạm vạch đỏ là thua, phá hết là thắng.</li>
       <li><b>Tăng tốc:</b> khi khung target nhìn thấy còn dưới 8 khối, hoặc grid chỉ phủ dưới 4 hàng của khung, grid đi xuống nhanh gấp 5 cho đến khi đủ. Khi hàng trên cùng của level đã lộ ra thì không tăng tốc nữa. Không tăng tốc khi khối thấp nhất đã cách vạch đỏ từ 2 hàng trở xuống.</li>
       <li><b>Luôn có nước đi tốt:</b> board luôn có ít nhất 1 lần swap tạo hàng 3 của một màu đang có ở hàng dưới cùng của target grid. Khi thiếu, game đổi màu vài khối mới đang rơi vào (không thấy được); nếu vẫn thiếu thì đổi màu vài khối trên board, các khối này lóe sáng.</li>
@@ -225,9 +225,11 @@ function untargeted(color){let n=0;for(const row of G.tgrid)for(const t of row)i
 function aliveTotal(){let n=0;for(const row of G.tgrid)for(const t of row)if(t&&t.alive)n++;return n}
 function lowestAliveRow(){for(let r=G.tgrid.length-1;r>=0;r--)if(G.tgrid[r].some(t=>t&&t.alive))return r;return -1}
 function pickTarget(color){
+  // front cubes only (no shooting through); lowest one first, ties left to right; only cubes whose center is inside the visible area
+  let best=null;
   for(let c=0;c<G.TC;c++){const r=frontRow(c); if(r<0)continue; const t=G.tgrid[r][c];
-    if(t.color===color&&!t.targeted&&tcy(r)>=T_TOP) return {r,c,t};}   // only cubes whose center is inside the visible target area
-  return null;
+    if(t.color===color&&!t.targeted&&tcy(r)>=T_TOP&&(!best||r>best.r)) best={r,c,t};}
+  return best;
 }
 /* colors of the bottom target row: the board must always offer a swap that matches one of them */
 function visibleStats(){

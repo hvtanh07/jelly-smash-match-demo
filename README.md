@@ -7,7 +7,7 @@ Demo chơi được, dựa trên GDD Jelly Smash (https://hvtanh07.github.io/gdd
 
 Đạn của mỗi cannon = n (số khối của nhóm match), thay cho công thức GDD 10 + 5 × (n − 3).
 
-Giữ nguyên theo GDD: cannon chỉ bắn khối cùng màu ở hàng đầu (khối thấp nhất mỗi cột) và đang nằm trong khung nhìn thấy, trái sang phải, không bắn xuyên, không có mục tiêu thì chờ; target grid trượt xuống từ lần swap đầu, chạm vạch đỏ là thua.
+Giữ nguyên theo GDD: cannon chỉ bắn khối cùng màu ở hàng đầu (khối thấp nhất mỗi cột) và đang nằm trong khung nhìn thấy, không bắn xuyên, khối thấp nhất bắn trước (cùng độ cao thì trái sang phải), không có mục tiêu thì chờ; target grid trượt xuống từ lần swap đầu, chạm vạch đỏ là thua.
 
 Chơi: https://hvtanh07.github.io/jelly-smash-match-demo/
 
