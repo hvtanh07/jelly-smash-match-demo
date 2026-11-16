@@ -1,0 +1,595 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Jelly Smash Match</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex, noai, noimageai">
+<meta name="googlebot" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap">
+<style>
+/* Layout: one portrait game stage, a slim control bar above it, rules folded below. Single dark "arena" look on purpose. */
+:root{
+  --bg:#170c28;        /* arena night */
+  --panel:#24143d;     /* control surfaces */
+  --line:#46306b;      /* borders */
+  --fg:#f7f0ff;        /* text */
+  --muted:#b6a3d6;     /* secondary text */
+  --accent:#ffd93d;    /* lemon jelly */
+  --font-display:'Fredoka','Baloo 2',ui-rounded,system-ui,sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-display);margin:0}
+.wrap{min-height:100%;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:10px;
+  padding-block:10px 24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.bar{width:100%;max-width:var(--stage-w);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.bar label{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px}
+select,button{font:inherit;font-size:14px;color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 10px;cursor:pointer}
+button:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);color:#2a1846;border-color:transparent;font-weight:700}
+.spacer{flex:1}
+:root{--stage-w:min(440px, calc((100dvh - 110px) * 360 / 700))}
+@supports not (height:100dvh){:root{--stage-w:min(440px, calc((100vh - 110px) * 360 / 700))}}
+.stage{position:relative;width:100%;max-width:var(--stage-w);min-width:min(300px,100%);aspect-ratio:360/700}
+canvas{width:100%;height:100%;display:block;border-radius:20px;touch-action:none;user-select:none;-webkit-user-select:none}
+.overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+  background:color-mix(in srgb,var(--bg) 78%,transparent);border-radius:20px;text-align:center;padding:24px;box-sizing:border-box}
+.overlay h2{margin:0;font-size:34px;letter-spacing:.02em;text-wrap:balance}
+.overlay p{margin:0;color:var(--muted);max-width:28ch}
+.overlay .row{display:flex;gap:10px}
+details{width:100%;max-width:var(--stage-w);background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 14px;box-sizing:border-box}
+summary{cursor:pointer;font-weight:600}
+details ul{margin:8px 0 2px;padding-left:18px;line-height:1.5;font-size:14px;color:var(--muted)}
+details b{color:var(--fg);font-weight:600}
+@media (prefers-reduced-motion: reduce){ canvas{scroll-behavior:auto} }
+</style>
+</head><body>
+
+<div class="wrap">
+  <div class="bar">
+    <label for="lvl">Level
+      <select id="lvl"></select>
+    </label>
+    <label for="rule">Slot đầy
+      <select id="rule">
+        <option value="queue">Xếp hàng chờ</option>
+        <option value="merge">Gộp vào cannon cùng màu</option>
+        <option value="discard">Mất lượt cannon</option>
+      </select>
+    </label>
+    <label for="stuck">Cannon kẹt
+      <select id="stuck">
+        <option value="tap">Chạm để bỏ</option>
+        <option value="rotate">Tự đổi với hàng chờ</option>
+        <option value="keep">Giữ nguyên (luật gốc)</option>
+      </select>
+    </label>
+    <span class="spacer"></span>
+    <button id="restart" type="button">Chơi lại</button>
+  </div>
+
+  <div class="stage" id="stage">
+    <canvas id="cv" aria-label="Bàn chơi Jelly Smash Match"></canvas>
+    <div class="overlay" id="ov" hidden>
+      <h2 id="ovTitle">Thắng!</h2>
+      <p id="ovText"></p>
+      <div class="row">
+        <button id="ovRetry" type="button">Chơi lại</button>
+        <button id="ovNext" type="button" class="primary">Level tiếp</button>
+      </div>
+    </div>
+  </div>
+
+  <details id="rules">
+    <summary>Luật chơi trong bản demo</summary>
+    <ul>
+      <li><b>Board:</b> đổi chỗ 2 khối jelly cạnh nhau (kéo hoặc chạm lần lượt). Chỉ đổi khi tạo được hàng 3+ cùng màu, nếu không khối trượt về chỗ cũ. Khối rơi xuống, khối mới rơi từ trên vào, có combo dây chuyền.</li>
+      <li><b>Cannon:</b> mỗi nhóm match sinh 1 cannon cùng màu vào 1 slot trống trong hàng 4 slot. Đạn = 10 + 5 × (n − 3), n là số khối của nhóm (nhóm chữ L/T gộp thành một).</li>
+      <li><b>Bắn:</b> cannon chỉ bắn khối cùng màu ở hàng đầu (khối thấp nhất của mỗi cột), từ trái sang phải, không bắn xuyên. Không có mục tiêu thì chờ. Bắn hết đạn thì cannon biến mất.</li>
+      <li><b>Target grid:</b> bắt đầu trượt xuống ở lần swap đầu tiên. Chạm vạch đỏ là thua, phá hết là thắng.</li>
+      <li><b>Màu khối mới:</b> theo tỉ lệ màu ở hàng dưới cùng của target grid (luật spawn của GDD), trộn thêm một phần ngẫu nhiên để board không bị một màu.</li>
+      <li><b>Cannon kẹt</b> (còn đạn nhưng hàng đầu không có màu của nó) làm các slot đứng im. Bản demo cho chọn: chạm cannon đang chờ để bỏ (mất số đạn còn lại), tự đổi chỗ với cannon trong hàng chờ, hoặc giữ nguyên như luật gốc.</li>
+      <li><b>Màu đã hết trên target:</b> match màu đó không sinh cannon, cannon đang chờ màu đó tự biến mất.</li>
+    </ul>
+  </details>
+</div>
+
+<script>
+(function(){
+'use strict';
+/* ---------- constants (logical 360×700 portrait) ---------- */
+const W=360,H=700,CS=46,COLS=7,ROWS=7,X0=(W-COLS*CS)/2;
+const T_TOP=56, DANGER=T_TOP+5*CS;            // target area: 5 visible rows
+const SLOT_Y=DANGER+8, SLOT_H=62, SLOT_X0=12, QX=304;  // queue column at the right
+let NSLOT=4, SLOT_GAP=8, SLOT_W=0;
+function setSlots(n){NSLOT=n; SLOT_GAP=n>3?8:10; SLOT_W=(QX-4-SLOT_X0-(n-1)*SLOT_GAP)/n;}
+setSlots(4);
+const B_TOP=SLOT_Y+SLOT_H+10;                 // board top
+const FIRE=0.15;                              // seconds between shots per cannon
+const COLORS=[
+  {name:'Dâu',  base:'#ff5470',light:'#ffa0b0',dark:'#c22848'},
+  {name:'Cam',  base:'#ff9f2e',light:'#ffcd84',dark:'#c4650a'},
+  {name:'Chanh',base:'#ffd93d',light:'#fff2a3',dark:'#c49c06'},
+  {name:'Bạc hà',base:'#2fd39a',light:'#94f2cc',dark:'#0f9060'},
+  {name:'Biển', base:'#3d9dff',light:'#a6d3ff',dark:'#1a60c0'},
+  {name:'Nho',  base:'#a66bff',light:'#d5b9ff',dark:'#6c34c8'},
+];
+const LEVELS=[
+  {rows:10,palette:[0,1,3,4],    speed:3.6,seed:11},
+  {rows:14,palette:[0,1,2,3,4],  speed:4.4,seed:23},
+  {rows:18,palette:[0,1,2,3,4,5],speed:5.2,seed:37},
+  {rows:22,palette:[0,1,2,3,4,5],speed:6.0,seed:51},
+];
+const PRAISE=n=>n>=10?'Epic':n>=8?'Extreme':n>=6?'Amazing':n>=5?'Great':'';
+const ammoFor=n=>10+5*(n-3);
+
+/* ---------- storage (best effort) ---------- */
+const store={get(k,d){try{const v=localStorage.getItem('jsm.'+k);return v==null?d:v}catch(e){return d}},
+             set(k,v){try{localStorage.setItem('jsm.'+k,v)}catch(e){}}};
+
+/* ---------- DOM ---------- */
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+const stageEl=document.getElementById('stage');
+const lvlSel=document.getElementById('lvl'),ruleSel=document.getElementById('rule');
+const ov=document.getElementById('ov'),ovTitle=document.getElementById('ovTitle'),ovText=document.getElementById('ovText');
+LEVELS.forEach((L,i)=>{const o=document.createElement('option');o.value=i;o.textContent=String(i+1);lvlSel.appendChild(o)});
+let stuck=store.get('stuck','tap'); if(!['tap','rotate','keep'].includes(stuck)) stuck='tap';
+const stuckSel=document.getElementById('stuck'); stuckSel.value=stuck;
+stuckSel.addEventListener('change',()=>{stuck=stuckSel.value;store.set('stuck',stuck)});
+let rule=store.get('rule','queue'); if(!['queue','merge','discard'].includes(rule)) rule='queue'; ruleSel.value=rule;
+ruleSel.addEventListener('change',()=>{rule=ruleSel.value;store.set('rule',rule)});
+lvlSel.addEventListener('change',()=>loadLevel(+lvlSel.value));
+document.getElementById('restart').addEventListener('click',()=>loadLevel(G.level));
+document.getElementById('ovRetry').addEventListener('click',()=>loadLevel(G.level));
+document.getElementById('ovNext').addEventListener('click',()=>loadLevel(Math.min(G.level+1,LEVELS.length-1)));
+
+/* ---------- canvas sizing ---------- */
+let scale=1,dpr=1;
+function resize(){
+  const r=stageEl.getBoundingClientRect(); dpr=Math.min(window.devicePixelRatio||1,3);
+  cv.width=Math.round(r.width*dpr); cv.height=Math.round(r.height*dpr); scale=r.width/W;
+  buildSprites();
+}
+window.addEventListener('resize',resize);
+
+/* ---------- helpers ---------- */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function rr(g,x,y,w,h,r){g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath()}
+const lerp=(a,b,t)=>a+(b-a)*t;
+const ease=t=>1-Math.pow(1-t,3);
+
+/* ---------- sprites: jelly cubes, pre-rendered per color ---------- */
+let SPR={};
+function makeJelly(ci,size,eyes){
+  const px=Math.ceil(size*scale*dpr)+4, c=document.createElement('canvas'); c.width=c.height=px;
+  const g=c.getContext('2d'), k=(px-4)/size; g.translate(2,2); g.scale(k,k);
+  const C=COLORS[ci], s=size;
+  // bottom shade
+  rr(g,0,2,s,s-2,s*0.26); g.fillStyle=C.dark; g.fill();
+  const gr=g.createLinearGradient(0,0,0,s); gr.addColorStop(0,C.light); gr.addColorStop(.45,C.base); gr.addColorStop(1,C.base);
+  rr(g,0,0,s,s-4,s*0.26); g.fillStyle=gr; g.fill();
+  // gloss
+  g.fillStyle='rgba(255,255,255,.55)'; g.beginPath(); g.ellipse(s*.32,s*.24,s*.2,s*.1,-0.35,0,Math.PI*2); g.fill();
+  g.fillStyle='rgba(255,255,255,.8)'; g.beginPath(); g.arc(s*.72,s*.2,s*.04,0,Math.PI*2); g.fill();
+  if(eyes){
+    g.fillStyle='rgba(30,10,40,.78)';
+    g.beginPath(); g.ellipse(s*.36,s*.54,s*.06,s*.085,0,0,Math.PI*2); g.ellipse(s*.64,s*.54,s*.06,s*.085,0,0,Math.PI*2); g.fill();
+    g.fillStyle='#fff'; g.beginPath(); g.arc(s*.38,s*.51,s*.022,0,Math.PI*2); g.arc(s*.66,s*.51,s*.022,0,Math.PI*2); g.fill();
+    g.strokeStyle='rgba(30,10,40,.6)'; g.lineWidth=s*.035; g.lineCap='round';
+    g.beginPath(); g.arc(s*.5,s*.66,s*.06,0.2*Math.PI,0.8*Math.PI); g.stroke();
+  } else {
+    // target cubes: candied crust instead of a face
+    g.strokeStyle='rgba(255,255,255,.35)'; g.lineWidth=s*.05;
+    rr(g,s*.2,s*.22,s*.6,s*.5,s*.14); g.stroke();
+  }
+  return c;
+}
+function buildSprites(){SPR={board:COLORS.map((_,i)=>makeJelly(i,42,true)),target:COLORS.map((_,i)=>makeJelly(i,40,false))}}
+function drawSpr(img,cx,cy,size,sx=1,sy=1){ctx.drawImage(img,cx-size*sx/2,cy-size*sy/2,size*sx,size*sy)}
+
+/* ---------- game state ---------- */
+const G={};
+function genTargets(L){
+  const rnd=mulberry32(L.seed), grid=[];
+  for(let r=0;r<L.rows;r++) grid.push(new Array(COLS).fill(null));
+  let r=0;
+  while(r<L.rows){
+    let h=2+Math.floor(rnd()*2); h=Math.min(h,L.rows-r);
+    let c=0,prev=-1;
+    while(c<COLS){
+      let w=2+Math.floor(rnd()*3); if(c+w>COLS) w=COLS-c; if(COLS-(c+w)===1) w+=(w<4?1:-1);
+      let col; let guard=0;
+      do{col=L.palette[Math.floor(rnd()*L.palette.length)]}while((col===prev || (r>0&&grid[r-1][c]&&grid[r-1][c].color===col)) && guard++<12);
+      for(let rr2=r;rr2<r+h;rr2++) for(let cc=c;cc<c+w;cc++) grid[rr2][cc]={color:col,alive:true,targeted:false};
+      prev=col; c+=w;
+    }
+    r+=h;
+  }
+  return grid;
+}
+function loadLevel(i){
+  const L=LEVELS[i]; store.set('level',i); lvlSel.value=i;
+  Object.assign(G,{level:i,L,tgrid:genTargets(L),offY:0,started:false,over:null,
+    board:[],state:'idle',sel:null,drag:null,clearT:0,cascade:0,
+    slots:new Array(NSLOT).fill(null),queue:[],shots:[],parts:[],flies:[],pops:[],
+    matches:0,cannonsMade:0,time:0,hint:null,idle:0,lostAmmo:0});
+  G.offY=DANGER-2*CS-L.rows*CS;
+  G.total=L.rows*COLS;
+  fillBoard();
+  ov.hidden=true;
+}
+
+/* ---------- target grid queries ---------- */
+function frontRow(c){for(let r=G.tgrid.length-1;r>=0;r--){const t=G.tgrid[r][c];if(t&&t.alive)return r}return -1}
+function untargeted(color){let n=0;for(const row of G.tgrid)for(const t of row)if(t&&t.alive&&!t.targeted&&t.color===color)n++;return n}
+function aliveTotal(){let n=0;for(const row of G.tgrid)for(const t of row)if(t&&t.alive)n++;return n}
+function lowestAliveRow(){for(let r=G.tgrid.length-1;r>=0;r--)if(G.tgrid[r].some(t=>t&&t.alive))return r;return -1}
+function pickTarget(color){
+  for(let c=0;c<COLS;c++){const r=frontRow(c); if(r<0)continue; const t=G.tgrid[r][c];
+    if(t.color===color&&!t.targeted) return {r,c,t};}
+  return null;
+}
+/* spawn colors follow the GDD rule (share of each color in the bottom target row), blended with an even share so the board never floods */
+function spawnWeights(){
+  const present=new Set(); for(const row of G.tgrid)for(const t of row)if(t&&t.alive)present.add(t.color);
+  const w=new Map(); const r=lowestAliveRow();
+  const cols=[...present];
+  // keep at least 4 colors on the board so swaps stay readable
+  for(const c of G.L.palette) if(cols.length<4&&!cols.includes(c)) cols.push(c);
+  for(let c=0;c<COLORS.length&&cols.length<4;c++) if(!cols.includes(c)) cols.push(c);
+  cols.forEach(c=>w.set(c,0.6/cols.length));
+  if(r>=0){const row=G.tgrid[r].filter(t=>t&&t.alive); row.forEach(t=>w.set(t.color,w.get(t.color)+0.4/row.length));}
+  return w;
+}
+function pickColor(w,avoid){
+  let tot=0; for(const [c,v] of w) if(!avoid.has(c)) tot+=v;
+  if(tot<=0){avoid=new Set(); for(const [,v] of w) tot+=v;}
+  let x=Math.random()*tot; for(const [c,v] of w){ if(avoid.has(c))continue; x-=v; if(x<=0) return c;}
+  return [...w.keys()][0];
+}
+
+/* ---------- board ---------- */
+const cx=c=>X0+c*CS+CS/2, cy=r=>B_TOP+r*CS+CS/2;
+function tile(color,r,c,fromY){return {color,px:cx(c),py:fromY==null?cy(r):fromY,spd:900,dying:0,squash:0}}
+function fillBoard(){
+  const w=spawnWeights();
+  G.board=[];
+  for(let r=0;r<ROWS;r++){G.board.push([]);for(let c=0;c<COLS;c++){
+    const avoid=new Set();
+    if(c>=2&&G.board[r][c-1].color===G.board[r][c-2].color) avoid.add(G.board[r][c-1].color);
+    if(r>=2&&G.board[r-1][c].color===G.board[r-2][c].color) avoid.add(G.board[r-1][c].color);
+    G.board[r].push(tile(pickColor(w,avoid),r,c,cy(r)-CS*(ROWS+1)+r*4));
+  }}
+  if(!hasMoves()) reshuffle();
+  G.state='fall0';
+}
+const col=(r,c)=>{const t=G.board[r]&&G.board[r][c];return t&&!t.dying?t.color:-1};
+function findGroups(){
+  const mark=[...Array(ROWS)].map(()=>new Array(COLS).fill(false));
+  for(let r=0;r<ROWS;r++){let s=0;for(let c=1;c<=COLS;c++){if(c<COLS&&col(r,c)>=0&&col(r,c)===col(r,s))continue;if(c-s>=3&&col(r,s)>=0)for(let k=s;k<c;k++)mark[r][k]=true;s=c}}
+  for(let c=0;c<COLS;c++){let s=0;for(let r=1;r<=ROWS;r++){if(r<ROWS&&col(r,c)>=0&&col(r,c)===col(s,c))continue;if(r-s>=3&&col(s,c)>=0)for(let k=s;k<r;k++)mark[k][c]=true;s=r}}
+  const seen=[...Array(ROWS)].map(()=>new Array(COLS).fill(false)), groups=[];
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    if(!mark[r][c]||seen[r][c])continue;
+    const color=col(r,c), cells=[], st=[[r,c]]; seen[r][c]=true;
+    while(st.length){const [a,b]=st.pop();cells.push([a,b]);
+      for(const [da,db] of [[1,0],[-1,0],[0,1],[0,-1]]){const na=a+da,nb=b+db;
+        if(na>=0&&na<ROWS&&nb>=0&&nb<COLS&&mark[na][nb]&&!seen[na][nb]&&col(na,nb)===color){seen[na][nb]=true;st.push([na,nb])}}}
+    groups.push({color,cells});
+  }
+  return groups;
+}
+function lineAt(r,c){
+  const k=col(r,c); if(k<0)return false;
+  let h=1; for(let x=c-1;x>=0&&col(r,x)===k;x--)h++; for(let x=c+1;x<COLS&&col(r,x)===k;x++)h++;
+  let v=1; for(let y=r-1;y>=0&&col(y,c)===k;y--)v++; for(let y=r+1;y<ROWS&&col(y,c)===k;y++)v++;
+  return h>=3||v>=3;
+}
+function swapCells(a,b){const t=G.board[a[0]][a[1]];G.board[a[0]][a[1]]=G.board[b[0]][b[1]];G.board[b[0]][b[1]]=t}
+function findMove(){
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)for(const [dr,dc] of [[0,1],[1,0]]){
+    const r2=r+dr,c2=c+dc; if(r2>=ROWS||c2>=COLS)continue;
+    swapCells([r,c],[r2,c2]); const ok=lineAt(r,c)||lineAt(r2,c2); swapCells([r,c],[r2,c2]);
+    if(ok) return [[r,c],[r2,c2]];
+  }
+  return null;
+}
+const hasMoves=()=>!!findMove();
+function reshuffle(){
+  const tiles=G.board.flat();
+  for(let tries=0;tries<80;tries++){
+    for(let i=tiles.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));const x=tiles[i].color;tiles[i].color=tiles[j].color;tiles[j].color=x}
+    if(findGroups().length===0&&hasMoves()) return;
+  }
+  const w=spawnWeights(); tiles.forEach(t=>t.color=pickColor(w,new Set()));
+  if(findGroups().length||!hasMoves()) reshuffle();
+}
+function settled(){
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const t=G.board[r][c];if(!t)return false;
+    if(Math.abs(t.px-cx(c))>0.5||Math.abs(t.py-cy(r))>0.5)return false}
+  return true;
+}
+function trySwap(a,b){
+  if(G.state!=='idle'||G.over)return;
+  if(Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1])!==1)return;
+  if(b[0]<0||b[0]>=ROWS||b[1]<0||b[1]>=COLS)return;
+  G.started=true; G.sel=null; G.hint=null; G.idle=0;
+  swapCells(a,b); G.board[a[0]][a[1]].spd=G.board[b[0]][b[1]].spd=420;
+  G.swap=[a,b]; G.state='swap';
+}
+function resolveGroups(groups){
+  for(const g of groups){
+    const n=g.cells.length, ammo=ammoFor(n);
+    let sx=0,sy=0; g.cells.forEach(([r,c])=>{sx+=cx(c);sy+=cy(r);G.board[r][c].dying=0.001});
+    const from={x:sx/n,y:sy/n};
+    G.matches++;
+    addCannon(g.color,ammo,from,n);
+  }
+  G.state='clear'; G.clearT=0.24;
+}
+function gravity(){
+  for(let c=0;c<COLS;c++){
+    const keep=[]; for(let r=ROWS-1;r>=0;r--){const t=G.board[r][c]; if(t&&!t.dying)keep.push(t)}
+    const missing=ROWS-keep.length, w=spawnWeights();
+    for(let r=ROWS-1,i=0;r>=0;r--,i++){
+      if(i<keep.length){G.board[r][c]=keep[i];keep[i].spd=900}
+      else{const k=i-keep.length; G.board[r][c]=tile(pickColor(w,new Set()),r,c,B_TOP-CS/2-k*CS-6); }
+    }
+    void missing;
+  }
+}
+
+/* ---------- cannons ---------- */
+const slotX=i=>SLOT_X0+i*(SLOT_W+SLOT_GAP);
+const slotC=i=>({x:slotX(i)+SLOT_W/2,y:SLOT_Y+SLOT_H/2});
+function newCannon(color,ammo){return {color,ammo,cd:0.12,inflight:0,dying:0,pop:1,recoil:0,waiting:false,waitT:0,flash:0}}
+function discardCannon(i){const k=G.slots[i]; if(!k||k.dying||k.ammo<=0)return false;
+  G.lostAmmo+=k.ammo; k.ammo=0; const c=slotC(i); popup(c.x,c.y-20,'Bỏ','#ffb3c1',''); return true;}
+function addCannon(color,ammo,from,n){
+  const p=PRAISE(n);
+  if(untargeted(color)===0){ popup(from.x,from.y,'Không có mục tiêu','#b6a3d6',''); return; }
+  popup(from.x,from.y,p,COLORS[color].light,'+'+ammo);
+  G.cannonsMade++;
+  const free=G.slots.findIndex(s=>!s);
+  if(free>=0){ G.slots[free]=newCannon(color,ammo); G.slots[free].pop=1; fly(from,slotC(free),color); return; }
+  if(rule==='merge'){
+    const s=G.slots.find(s=>s&&!s.dying&&s.color===color);
+    if(s){ s.ammo+=ammo; s.pop=1; const i=G.slots.indexOf(s); fly(from,slotC(i),color); return; }
+  }
+  if(rule==='discard'){ G.lostAmmo+=ammo; popup(from.x,from.y-26,'Slot đầy','#ff8aa0',''); return; }
+  G.queue.push({color,ammo}); fly(from,{x:QX+22,y:SLOT_Y+SLOT_H/2},color);
+}
+function fly(a,b,color){for(let i=0;i<6;i++)G.flies.push({x0:a.x+(Math.random()-.5)*30,y0:a.y+(Math.random()-.5)*30,x1:b.x,y1:b.y,t:-i*0.03,dur:0.32,color})}
+function popup(x,y,text,color,sub){G.pops.push({x,y,text,color,sub,t:0})}
+function pullQueue(){
+  for(let i=0;i<NSLOT;i++){
+    if(G.slots[i])continue;
+    while(G.queue.length){const q=G.queue.shift(); if(untargeted(q.color)>0){G.slots[i]=newCannon(q.color,q.ammo);break}}
+  }
+}
+function updateCannons(dt){
+  for(let i=0;i<NSLOT;i++){
+    const k=G.slots[i]; if(!k)continue;
+    k.pop=Math.max(0,k.pop-dt*3.5); k.recoil=Math.max(0,k.recoil-dt*9); k.flash=Math.max(0,k.flash-dt*6);
+    if(k.dying){k.dying-=dt; if(k.dying<=0){G.slots[i]=null} continue}
+    if(k.ammo>0&&untargeted(k.color)===0){ k.ammo=0; }   // color gone from the target grid
+    if(k.ammo>0){
+      k.cd-=dt;
+      if(k.cd<=0){
+        const t=pickTarget(k.color);
+        if(t){ t.t.targeted=true; k.ammo--; k.inflight++; k.cd=FIRE; k.recoil=1; k.flash=1; k.waiting=false;
+          const sc=slotC(i); G.shots.push({x0:sc.x,y0:SLOT_Y+8,r:t.r,c:t.c,t:0,k,color:k.color}); }
+        else { k.waiting=true; k.cd=0.05; }
+      }
+    }
+    k.waitT=k.waiting&&k.ammo>0?k.waitT+dt:0;
+    if(stuck==='rotate'&&k.waitT>0.6&&k.inflight===0){
+      const j=G.queue.findIndex(q=>q.color!==k.color&&pickTarget(q.color));
+      if(j>=0){const q=G.queue.splice(j,1)[0]; G.queue.push({color:k.color,ammo:k.ammo}); G.slots[i]=newCannon(q.color,q.ammo); continue;}
+    }
+    if(k.ammo<=0&&k.inflight===0) k.dying=0.28;
+  }
+  pullQueue();
+  for(let i=G.queue.length-1;i>=0;i--) if(untargeted(G.queue[i].color)===0) G.queue.splice(i,1);
+}
+function updateShots(dt){
+  for(let i=G.shots.length-1;i>=0;i--){
+    const s=G.shots[i]; s.t+=dt/0.26;
+    if(s.t>=1){
+      const t=G.tgrid[s.r][s.c]; t.alive=false; s.k.inflight--;
+      const x=cx(s.c), y=G.offY+s.r*CS+CS/2;
+      for(let j=0;j<10;j++){const a=Math.random()*Math.PI*2,v=60+Math.random()*140;G.parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-40,life:0.5,max:0.5,color:s.color,r:3+Math.random()*3})}
+      G.shots.splice(i,1);
+    }
+  }
+}
+
+/* ---------- main update ---------- */
+function update(dt){
+  G.time+=dt;
+  // tiles move
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const t=G.board[r][c];if(!t)continue;
+    const tx=cx(c),ty=cy(r),dx=tx-t.px,dy=ty-t.py,d=Math.hypot(dx,dy),step=t.spd*dt;
+    if(d<=step){ if(d>2&&dy>2) t.squash=1; t.px=tx;t.py=ty }else{t.px+=dx/d*step;t.py+=dy/d*step}
+    t.squash=Math.max(0,t.squash-dt*5);
+    if(t.dying) t.dying+=dt;
+  }
+  // board state machine
+  if(G.state==='fall0'&&settled()) G.state='idle';
+  else if(G.state==='swap'&&settled()){
+    const g=findGroups();
+    if(g.length) resolveGroups(g);
+    else { const [a,b]=G.swap; swapCells(a,b); G.board[a[0]][a[1]].spd=G.board[b[0]][b[1]].spd=420; G.state='swapback'; }
+  }
+  else if(G.state==='swapback'&&settled()) G.state='idle';
+  else if(G.state==='clear'){ G.clearT-=dt; if(G.clearT<=0){ gravity(); G.state='fall'; } }
+  else if(G.state==='fall'&&settled()){
+    const g=findGroups();
+    if(g.length) resolveGroups(g);
+    else { if(!hasMoves()) { reshuffle(); popup(W/2,B_TOP+ROWS*CS/2,'Xáo bài','#fff',''); } G.state='idle'; }
+  }
+  if(G.state==='idle'&&!G.over){ G.idle+=dt; if(G.idle>5&&!G.hint) G.hint=findMove(); }
+
+  if(G.over) return;
+  updateCannons(dt); updateShots(dt);
+  if(G.started) G.offY+=G.L.speed*dt;
+  // lose / win
+  const lr=lowestAliveRow();
+  if(lr<0&&G.shots.length===0){ finish('win'); }
+  else if(lr>=0&&G.offY+(lr+1)*CS-3>=DANGER){ finish('lose'); }
+}
+function updateFx(dt){
+  for(let i=G.parts.length-1;i>=0;i--){const p=G.parts[i];p.life-=dt;p.vy+=420*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;if(p.life<=0)G.parts.splice(i,1)}
+  for(let i=G.flies.length-1;i>=0;i--){const f=G.flies[i];f.t+=dt/f.dur;if(f.t>=1)G.flies.splice(i,1)}
+  for(let i=G.pops.length-1;i>=0;i--){const p=G.pops[i];p.t+=dt;if(p.t>1.1)G.pops.splice(i,1)}
+}
+function finish(kind){
+  G.over=kind;
+  const left=aliveTotal();
+  ovTitle.textContent=kind==='win'?'Thắng!':'Thua rồi';
+  ovText.textContent=kind==='win'
+    ? `Level ${G.level+1} xong sau ${Math.round(G.time)} giây, ${G.matches} lần match, ${G.cannonsMade} cannon.`
+    : `Target grid chạm vạch đỏ. Còn ${left}/${G.total} khối.`;
+  document.getElementById('ovNext').hidden=!(kind==='win'&&G.level<LEVELS.length-1);
+  setTimeout(()=>{ if(G.over===kind) ov.hidden=false; },500);
+}
+
+/* ---------- drawing ---------- */
+function draw(){
+  ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
+  // arena
+  const bg=ctx.createLinearGradient(0,0,0,H); bg.addColorStop(0,'#2b1650'); bg.addColorStop(1,'#1a0d2e');
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+  drawHud();
+  // target area
+  ctx.save(); rr(ctx,X0-6,T_TOP,COLS*CS+12,DANGER-T_TOP,14); ctx.fillStyle='rgba(10,4,24,.45)'; ctx.fill(); ctx.clip();
+  for(let r=0;r<G.tgrid.length;r++){const y=G.offY+r*CS+CS/2; if(y<T_TOP-CS||y>DANGER+CS)continue;
+    for(let c=0;c<COLS;c++){const t=G.tgrid[r][c]; if(!t||!t.alive)continue;
+      const front=frontRow(c)===r;
+      ctx.globalAlpha=front?1:0.82; drawSpr(SPR.target[t.color],cx(c),y,40); ctx.globalAlpha=1;
+      if(t.targeted){ctx.strokeStyle='rgba(255,255,255,.8)';ctx.lineWidth=2;rr(ctx,cx(c)-19,y-19,38,36,9);ctx.stroke()}
+    }}
+  ctx.restore();
+  // danger line
+  const lr=lowestAliveRow(), gap=lr>=0?DANGER-(G.offY+(lr+1)*CS):999;
+  const warn=gap<CS*1.2 && !G.over;
+  ctx.strokeStyle=warn&&Math.floor(G.time*4)%2?'#ff3d5f':'rgba(255,90,120,.7)'; ctx.lineWidth=3; ctx.setLineDash([8,6]);
+  ctx.beginPath(); ctx.moveTo(X0-6,DANGER); ctx.lineTo(X0+COLS*CS+6,DANGER); ctx.stroke(); ctx.setLineDash([]);
+  drawSlots();
+  // board
+  rr(ctx,X0-6,B_TOP-6,COLS*CS+12,ROWS*CS+12,16); ctx.fillStyle='rgba(10,4,24,.5)'; ctx.fill();
+  ctx.save(); rr(ctx,X0-6,B_TOP-6,COLS*CS+12,ROWS*CS+12,16); ctx.clip();
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){ if((r+c)%2){ctx.fillStyle='rgba(255,255,255,.035)';ctx.fillRect(X0+c*CS,B_TOP+r*CS,CS,CS)} }
+  const hintOn=G.hint&&Math.floor(G.time*2.5)%2;
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const t=G.board[r][c]; if(!t)continue;
+    let s=1,sx=1,sy=1; if(t.dying){s=Math.max(0,1-t.dying/0.24)*1.15; if(t.dying<0.06)s=1.15}
+    if(t.squash){sx=1+0.12*t.squash;sy=1-0.12*t.squash}
+    const sel=G.sel&&G.sel[0]===r&&G.sel[1]===c;
+    const hint=hintOn&&G.hint.some(([a,b])=>a===r&&b===c);
+    if(sel||hint){ctx.fillStyle=sel?'rgba(255,255,255,.22)':'rgba(255,217,61,.25)';rr(ctx,X0+c*CS+1,B_TOP+r*CS+1,CS-2,CS-2,12);ctx.fill()}
+    if(s>0) drawSpr(SPR.board[t.color],t.px,t.py+(1-sy)*14,42*s,sx*(sel?1.08:1),sy*(sel?1.08:1));
+  }
+  ctx.restore();
+  if(!G.started){ ctx.fillStyle='rgba(23,12,40,.78)'; rr(ctx,W/2-130,B_TOP+ROWS*CS/2-22,260,44,22); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.font='600 15px '+FONT; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('Đổi chỗ 2 khối để tạo hàng 3',W/2,B_TOP+ROWS*CS/2); }
+  // shots
+  for(const s of G.shots){const tx=cx(s.c),ty=G.offY+s.r*CS+CS/2,e=ease(s.t);
+    const x=lerp(s.x0,tx,e),y=lerp(s.y0,ty,e)-Math.sin(s.t*Math.PI)*18;
+    ctx.fillStyle=COLORS[s.color].light; ctx.beginPath(); ctx.arc(x,y,6,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle=COLORS[s.color].base; ctx.beginPath(); ctx.arc(x,y+1.5,4,0,Math.PI*2); ctx.fill();}
+  for(const f of G.flies){ if(f.t<0)continue; const e=ease(f.t); const x=lerp(f.x0,f.x1,e),y=lerp(f.y0,f.y1,e)-Math.sin(f.t*Math.PI)*40;
+    ctx.fillStyle=COLORS[f.color].base; ctx.beginPath(); ctx.arc(x,y,5*(1-f.t*.5),0,Math.PI*2); ctx.fill(); }
+  for(const p of G.parts){ctx.globalAlpha=Math.max(0,p.life/p.max);ctx.fillStyle=COLORS[p.color].light;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill()} ctx.globalAlpha=1;
+  for(const p of G.pops){const a=p.t<0.8?1:Math.max(0,1-(p.t-0.8)/0.3), y=p.y-20-p.t*26, sc=p.t<0.12?0.6+p.t/0.12*0.5:1.1-Math.min(0.1,(p.t-0.12));
+    ctx.globalAlpha=a; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.save(); ctx.translate(p.x,y); ctx.scale(sc,sc);
+    ctx.lineWidth=5; ctx.strokeStyle='rgba(23,12,40,.9)';
+    if(p.text){ctx.font='700 '+(p.text.length>8?15:22)+'px '+FONT; ctx.strokeText(p.text,0,0); ctx.fillStyle=p.color; ctx.fillText(p.text,0,0);}
+    if(p.sub){ctx.font='700 16px '+FONT; const oy=p.text?20:0; ctx.strokeText(p.sub,0,oy); ctx.fillStyle='#fff'; ctx.fillText(p.sub,0,oy);}
+    ctx.restore(); ctx.globalAlpha=1;}
+}
+const FONT="Fredoka, ui-rounded, system-ui, sans-serif";
+function drawHud(){
+  ctx.textBaseline='middle';
+  rr(ctx,X0-6,10,92,34,17); ctx.fillStyle='#ffd93d'; ctx.fill();
+  ctx.fillStyle='#2a1846'; ctx.font='700 16px '+FONT; ctx.textAlign='center'; ctx.fillText('LEVEL '+(G.level+1),X0-6+46,27.5);
+  const left=aliveTotal(), pct=1-left/G.total;
+  const bx=X0+100,bw=COLS*CS+6-100;
+  rr(ctx,bx,14,bw,26,13); ctx.fillStyle='rgba(10,4,24,.55)'; ctx.fill();
+  if(pct>0){rr(ctx,bx+3,17,Math.max(20,(bw-6)*pct),20,10); ctx.fillStyle='#2fd39a'; ctx.fill();}
+  ctx.fillStyle='#fff'; ctx.font='600 13px '+FONT; ctx.fillText(`Còn ${left} khối`,bx+bw/2,27.5);
+}
+function drawSlots(){
+  for(let i=0;i<NSLOT;i++){
+    const x=slotX(i),y=SLOT_Y,k=G.slots[i];
+    rr(ctx,x,y,SLOT_W,SLOT_H,14); ctx.fillStyle='rgba(10,4,24,.45)'; ctx.fill();
+    ctx.setLineDash([5,5]); ctx.strokeStyle='rgba(182,163,214,.45)'; ctx.lineWidth=1.5; rr(ctx,x+.75,y+.75,SLOT_W-1.5,SLOT_H-1.5,14); ctx.stroke(); ctx.setLineDash([]);
+    if(!k){ ctx.fillStyle='rgba(182,163,214,.5)'; ctx.font='500 12px '+FONT; ctx.textAlign='center'; ctx.fillText('trống',x+SLOT_W/2,y+SLOT_H/2); continue; }
+    drawCannon(k,x+SLOT_W/2,y+SLOT_H/2);
+  }
+  // queue column
+  const qy=SLOT_Y, qn=G.queue.length;
+  rr(ctx,QX,qy,44,SLOT_H,12); ctx.fillStyle='rgba(10,4,24,.35)'; ctx.fill();
+  ctx.fillStyle='#b6a3d6'; ctx.font='500 10px '+FONT; ctx.textAlign='center'; ctx.fillText(rule==='queue'||rule==='merge'?'chờ':'đầy→mất',QX+22,qy+10);
+  for(let j=0;j<Math.min(qn,4);j++){ ctx.fillStyle=COLORS[G.queue[j].color].base; rr(ctx,QX+8,qy+18+j*10,28,8,4); ctx.fill(); }
+  if(qn>4){ctx.fillStyle='#fff';ctx.font='600 10px '+FONT;ctx.fillText('+'+(qn-4),QX+22,qy+SLOT_H-6)}
+}
+function drawCannon(k,x,y){
+  const C=COLORS[k.color]; let s=1+0.25*Math.sin(k.pop*Math.PI); if(k.dying) s*=Math.max(0,k.dying/0.28);
+  ctx.save(); ctx.translate(x,y+4); ctx.scale(s,s);
+  ctx.globalAlpha=k.waiting&&k.ammo>0?0.7:1;
+  const ry=k.recoil*5;
+  // barrel
+  rr(ctx,-9,-30+ry,18,30,7); ctx.fillStyle=C.dark; ctx.fill();
+  rr(ctx,-7,-30+ry,14,26,6); ctx.fillStyle=C.base; ctx.fill();
+  rr(ctx,-11,-33+ry,22,8,4); ctx.fillStyle=C.light; ctx.fill();
+  if(k.flash){ctx.globalAlpha=k.flash;ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(0,-38+ry,7*k.flash+2,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1}
+  // base
+  rr(ctx,-28,-6,56,26,12); ctx.fillStyle=C.dark; ctx.fill();
+  rr(ctx,-28,-8,56,24,12); const gr=ctx.createLinearGradient(0,-8,0,16); gr.addColorStop(0,C.light); gr.addColorStop(1,C.base); ctx.fillStyle=gr; ctx.fill();
+  ctx.fillStyle='rgba(23,12,40,.85)'; rr(ctx,-17,-3,34,16,8); ctx.fill();
+  ctx.fillStyle='#fff'; ctx.font='700 13px '+FONT; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(String(k.ammo),0,5.5);
+  ctx.restore();
+  if(k.waiting&&k.ammo>0&&!k.dying){ctx.fillStyle='rgba(255,255,255,.8)';ctx.font='500 10px '+FONT;ctx.textAlign='center';ctx.fillText(stuck==='tap'&&k.waitT>0.6?'chạm để bỏ':'chờ mục tiêu',x,y+SLOT_H/2-6)}
+}
+
+/* ---------- input ---------- */
+function toLogical(e){const r=cv.getBoundingClientRect();return {x:(e.clientX-r.left)/r.width*W,y:(e.clientY-r.top)/r.height*H}}
+function cellAt(p){const c=Math.floor((p.x-X0)/CS),r=Math.floor((p.y-B_TOP)/CS);return (r>=0&&r<ROWS&&c>=0&&c<COLS)?[r,c]:null}
+cv.addEventListener('pointerdown',e=>{
+  const p=toLogical(e),cell=cellAt(p); if(G.over)return;
+  if(!cell){ if(stuck==='tap'&&p.y>=SLOT_Y&&p.y<=SLOT_Y+SLOT_H){ for(let i=0;i<NSLOT;i++){const x=slotX(i); if(p.x>=x&&p.x<=x+SLOT_W){ const k=G.slots[i]; if(k&&k.waiting) discardCannon(i); }}} return; }
+  cv.setPointerCapture(e.pointerId);
+  if(G.sel&&Math.abs(G.sel[0]-cell[0])+Math.abs(G.sel[1]-cell[1])===1){ const a=G.sel; G.sel=null; trySwap(a,cell); G.drag=null; return; }
+  G.drag={cell,x:p.x,y:p.y,done:false}; G.sel=cell;
+});
+cv.addEventListener('pointermove',e=>{
+  if(!G.drag||G.drag.done)return; const p=toLogical(e),dx=p.x-G.drag.x,dy=p.y-G.drag.y;
+  if(Math.max(Math.abs(dx),Math.abs(dy))>CS*0.38){
+    const [r,c]=G.drag.cell, b=Math.abs(dx)>Math.abs(dy)?[r,c+Math.sign(dx)]:[r+Math.sign(dy),c];
+    G.drag.done=true; G.sel=null; if(b[0]>=0&&b[0]<ROWS&&b[1]>=0&&b[1]<COLS) trySwap([r,c],b);
+  }
+});
+cv.addEventListener('pointerup',()=>{G.drag=null});
+cv.addEventListener('pointercancel',()=>{G.drag=null});
+
+/* ---------- loop ---------- */
+let last=performance.now();
+const api={timeScale:1,G,trySwap,findMove,loadLevel,discardCannon,pickTarget,setSlots};
+window.__jelly=api;
+function frame(now){
+  let dt=Math.min(0.05,(now-last)/1000); last=now;
+  const steps=Math.max(1,Math.round(api.timeScale));
+  for(let i=0;i<steps;i++){update(dt);updateFx(dt)}
+  draw(); requestAnimationFrame(frame);
+}
+resize();
+let startLvl=+store.get('level',0); if(!(startLvl>=0&&startLvl<LEVELS.length)) startLvl=0;
+loadLevel(startLvl);
+if(document.fonts&&document.fonts.load) document.fonts.load('600 16px Fredoka').catch(()=>{});
+requestAnimationFrame(frame);
+})();
+</script>
+</body></html>
