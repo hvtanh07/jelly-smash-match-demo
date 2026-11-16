@@ -82,7 +82,7 @@ details b{color:var(--fg);font-weight:600}
       <li><b>Bắn:</b> cannon chỉ bắn khối cùng màu ở hàng đầu (khối thấp nhất của mỗi cột) và đang nằm trong khung nhìn thấy, không bắn xuyên. Khối thấp nhất được bắn trước, cùng độ cao thì từ trái sang phải. Không có mục tiêu thì chờ. Bắn hết đạn thì cannon biến mất.</li>
       <li><b>Target grid:</b> bắt đầu trượt xuống ở lần swap đầu tiên. Chạm vạch đỏ là thua, phá hết là thắng.</li>
       <li><b>Tăng tốc:</b> khi khung target nhìn thấy còn dưới 8 khối, hoặc grid chỉ phủ dưới 4 hàng của khung, grid đi xuống nhanh gấp 5 cho đến khi đủ. Khi hàng trên cùng của level đã lộ ra thì không tăng tốc nữa. Không tăng tốc khi khối thấp nhất đã cách vạch đỏ từ 2 hàng trở xuống.</li>
-      <li><b>Luôn có nước đi tốt:</b> board luôn có ít nhất 1 lần swap tạo hàng 3 của một màu đang có ở hàng dưới cùng của target grid. Khi thiếu, game đổi màu vài khối mới đang rơi vào (không thấy được); nếu vẫn thiếu thì đổi màu vài khối trên board, các khối này lóe sáng.</li>
+      <li><b>Nước đi cho màu hàng dưới:</b> sau mỗi match, game quét các màu ở hàng dưới cùng của target grid. Khi khối mới rơi vào, game cố tạo nước match cho từng màu đó bằng cách đổi màu khối mới (không thấy được). Tối thiểu luôn có 1 màu có nước đi; nếu thiếu thì đổi màu vài khối trên board, các khối này lóe sáng.</li>
       <li><b>Màu khối mới:</b> theo tỉ lệ màu ở hàng dưới cùng của target grid (luật spawn của GDD), trộn thêm một phần ngẫu nhiên để board không bị một màu.</li>
       <li><b>Gộp cannon:</b> khi trong slot có 3 cannon cùng màu, chúng gộp thành 1 cannon ở slot bên trái nhất, đạn bằng tổng cả 3, trả lại 2 slot trống.</li>
       <li><b>Cannon kẹt:</b> cannon còn đạn nhưng hàng đầu không có màu của nó sẽ đứng chờ trong slot, không có cách bỏ. Hết slot trống thì cannon mới xử lý theo lựa chọn "Slot đầy", mặc định là mất lượt (match vẫn phá khối trên board nhưng không sinh cannon).</li>
@@ -322,7 +322,7 @@ function hasGoodMove(cols){
   return false;
 }
 /* recolor a few allowed tiles so that one swap makes a line of 3 in a bottom-row color, without making a match right away */
-function plantMove(cols,allowed){
+function plantMove(cols,allowed,mustKeep){
   const ks=[...cols]; if(!ks.length) return null;
   const pool=[...spawnWeights().keys()];
   for(let tries=0;tries<400;tries++){
@@ -342,7 +342,7 @@ function plantMove(cols,allowed){
     const saved=[...cells,[gr,gc]].map(([r,c])=>[r,c,G.board[r][c].color]);
     cells.forEach(([r,c])=>G.board[r][c].color=k);
     if(gapK){const o=pool.filter(x=>x!==k); G.board[gr][gc].color=o[Math.floor(Math.random()*o.length)]}
-    if(findGroups().length===0&&hasGoodMove(cols)) return touched;
+    if(findGroups().length===0&&hasGoodMove(cols)&&(!mustKeep||mustKeep.every(c=>hasGoodMove(new Set([c]))))) return touched;
     saved.forEach(([r,c,v])=>G.board[r][c].color=v);
   }
   return null;
@@ -395,9 +395,14 @@ function gravity(){
     }
     void missing;
   }
-  // new tiles are still above the board, so recoloring them here is invisible
+  // after each match: scan the bottom-row colors and try to give EACH of them a match move,
+  // by recoloring only the new tiles (still above the board, so the player does not see it)
   const cols=bottomColors();
-  if(cols.size&&findGroups().length===0&&!hasGoodMove(cols)) plantMove(cols,(r,c)=>G.board[r][c].fresh);
+  if(cols.size&&findGroups().length===0){
+    const order=[...cols].sort(()=>Math.random()-.5), ok=order.filter(k=>hasGoodMove(new Set([k])));
+    for(const k of order){ if(ok.includes(k)) continue;
+      if(plantMove(new Set([k]),(r,c)=>G.board[r][c].fresh,ok)) ok.push(k); }
+  }
   for(const row of G.board) for(const t of row) t.fresh=false;
 }
 

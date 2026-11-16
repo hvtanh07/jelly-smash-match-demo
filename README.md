@@ -15,7 +15,7 @@ Khi khung target nhìn thấy còn dưới 8 khối, hoặc grid chỉ phủ dư
 
 Khi trong slot có 3 cannon cùng màu, chúng gộp thành 1 cannon (slot trái nhất) với đạn bằng tổng cả 3.
 
-Board luôn có ít nhất 1 swap tạo hàng 3 của một màu ở hàng dưới cùng target grid.
+Sau mỗi match, game quét các màu ở hàng dưới cùng target grid và cố tạo nước match cho từng màu đó khi khối mới rơi vào (tối thiểu luôn có 1 màu có nước đi).
 
 Target grid: level 1 9×16, level 2 10×20, level 3 11×24, level 4 12×28 (cột × hàng). Board match-3 vẫn 7×7.
 
