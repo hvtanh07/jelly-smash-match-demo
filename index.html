@@ -58,13 +58,6 @@ details b{color:var(--fg);font-weight:600}
         <option value="discard">Mất lượt cannon</option>
       </select>
     </label>
-    <label for="stuck">Cannon kẹt
-      <select id="stuck">
-        <option value="tap">Chạm để bỏ</option>
-        <option value="rotate">Tự đổi với hàng chờ</option>
-        <option value="keep">Giữ nguyên (luật gốc)</option>
-      </select>
-    </label>
     <span class="spacer"></span>
     <button id="restart" type="button">Chơi lại</button>
   </div>
@@ -85,11 +78,11 @@ details b{color:var(--fg);font-weight:600}
     <summary>Luật chơi trong bản demo</summary>
     <ul>
       <li><b>Board:</b> đổi chỗ 2 khối jelly cạnh nhau (kéo hoặc chạm lần lượt). Chỉ đổi khi tạo được hàng 3+ cùng màu, nếu không khối trượt về chỗ cũ. Khối rơi xuống, khối mới rơi từ trên vào, có combo dây chuyền.</li>
-      <li><b>Cannon:</b> mỗi nhóm match sinh 1 cannon cùng màu vào 1 slot trống trong hàng 4 slot. Đạn = 10 + 5 × (n − 3), n là số khối của nhóm (nhóm chữ L/T gộp thành một).</li>
+      <li><b>Cannon:</b> mỗi nhóm match sinh 1 cannon cùng màu vào 1 slot trống trong hàng 5 slot. Đạn = 10 + 5 × (n − 3), n là số khối của nhóm (nhóm chữ L/T gộp thành một).</li>
       <li><b>Bắn:</b> cannon chỉ bắn khối cùng màu ở hàng đầu (khối thấp nhất của mỗi cột), từ trái sang phải, không bắn xuyên. Không có mục tiêu thì chờ. Bắn hết đạn thì cannon biến mất.</li>
       <li><b>Target grid:</b> bắt đầu trượt xuống ở lần swap đầu tiên. Chạm vạch đỏ là thua, phá hết là thắng.</li>
       <li><b>Màu khối mới:</b> theo tỉ lệ màu ở hàng dưới cùng của target grid (luật spawn của GDD), trộn thêm một phần ngẫu nhiên để board không bị một màu.</li>
-      <li><b>Cannon kẹt</b> (còn đạn nhưng hàng đầu không có màu của nó) làm các slot đứng im. Bản demo cho chọn: chạm cannon đang chờ để bỏ (mất số đạn còn lại), tự đổi chỗ với cannon trong hàng chờ, hoặc giữ nguyên như luật gốc.</li>
+      <li><b>Cannon kẹt:</b> cannon còn đạn nhưng hàng đầu không có màu của nó sẽ đứng chờ trong slot, không có cách bỏ. Hết slot trống thì cannon mới xử lý theo lựa chọn "Slot đầy".</li>
       <li><b>Màu đã hết trên target:</b> match màu đó không sinh cannon, cannon đang chờ màu đó tự biến mất.</li>
     </ul>
   </details>
@@ -104,7 +97,7 @@ const T_TOP=56, DANGER=T_TOP+5*CS;            // target area: 5 visible rows
 const SLOT_Y=DANGER+8, SLOT_H=62, SLOT_X0=12, QX=304;  // queue column at the right
 let NSLOT=4, SLOT_GAP=8, SLOT_W=0;
 function setSlots(n){NSLOT=n; SLOT_GAP=n>3?8:10; SLOT_W=(QX-4-SLOT_X0-(n-1)*SLOT_GAP)/n;}
-setSlots(4);
+setSlots(5);
 const B_TOP=SLOT_Y+SLOT_H+10;                 // board top
 const FIRE=0.15;                              // seconds between shots per cannon
 const COLORS=[
@@ -135,9 +128,6 @@ const stageEl=document.getElementById('stage');
 const lvlSel=document.getElementById('lvl'),ruleSel=document.getElementById('rule');
 const ov=document.getElementById('ov'),ovTitle=document.getElementById('ovTitle'),ovText=document.getElementById('ovText');
 LEVELS.forEach((L,i)=>{const o=document.createElement('option');o.value=i;o.textContent=String(i+1);lvlSel.appendChild(o)});
-let stuck=store.get('stuck','tap'); if(!['tap','rotate','keep'].includes(stuck)) stuck='tap';
-const stuckSel=document.getElementById('stuck'); stuckSel.value=stuck;
-stuckSel.addEventListener('change',()=>{stuck=stuckSel.value;store.set('stuck',stuck)});
 let rule=store.get('rule','queue'); if(!['queue','merge','discard'].includes(rule)) rule='queue'; ruleSel.value=rule;
 ruleSel.addEventListener('change',()=>{rule=ruleSel.value;store.set('rule',rule)});
 lvlSel.addEventListener('change',()=>loadLevel(+lvlSel.value));
@@ -347,9 +337,7 @@ function gravity(){
 /* ---------- cannons ---------- */
 const slotX=i=>SLOT_X0+i*(SLOT_W+SLOT_GAP);
 const slotC=i=>({x:slotX(i)+SLOT_W/2,y:SLOT_Y+SLOT_H/2});
-function newCannon(color,ammo){return {color,ammo,cd:0.12,inflight:0,dying:0,pop:1,recoil:0,waiting:false,waitT:0,flash:0}}
-function discardCannon(i){const k=G.slots[i]; if(!k||k.dying||k.ammo<=0)return false;
-  G.lostAmmo+=k.ammo; k.ammo=0; const c=slotC(i); popup(c.x,c.y-20,'Bỏ','#ffb3c1',''); return true;}
+function newCannon(color,ammo){return {color,ammo,cd:0.12,inflight:0,dying:0,pop:1,recoil:0,waiting:false,flash:0}}
 function addCannon(color,ammo,from,n){
   const p=PRAISE(n);
   if(untargeted(color)===0){ popup(from.x,from.y,'Không có mục tiêu','#b6a3d6',''); return; }
@@ -386,11 +374,6 @@ function updateCannons(dt){
           const sc=slotC(i); G.shots.push({x0:sc.x,y0:SLOT_Y+8,r:t.r,c:t.c,t:0,k,color:k.color}); }
         else { k.waiting=true; k.cd=0.05; }
       }
-    }
-    k.waitT=k.waiting&&k.ammo>0?k.waitT+dt:0;
-    if(stuck==='rotate'&&k.waitT>0.6&&k.inflight===0){
-      const j=G.queue.findIndex(q=>q.color!==k.color&&pickTarget(q.color));
-      if(j>=0){const q=G.queue.splice(j,1)[0]; G.queue.push({color:k.color,ammo:k.ammo}); G.slots[i]=newCannon(q.color,q.ammo); continue;}
     }
     if(k.ammo<=0&&k.inflight===0) k.dying=0.28;
   }
@@ -543,6 +526,7 @@ function drawSlots(){
 }
 function drawCannon(k,x,y){
   const C=COLORS[k.color]; let s=1+0.25*Math.sin(k.pop*Math.PI); if(k.dying) s*=Math.max(0,k.dying/0.28);
+  s*=Math.min(1,(SLOT_W-4)/56);   // fit the 56 px base into narrow slots
   ctx.save(); ctx.translate(x,y+4); ctx.scale(s,s);
   ctx.globalAlpha=k.waiting&&k.ammo>0?0.7:1;
   const ry=k.recoil*5;
@@ -557,7 +541,7 @@ function drawCannon(k,x,y){
   ctx.fillStyle='rgba(23,12,40,.85)'; rr(ctx,-17,-3,34,16,8); ctx.fill();
   ctx.fillStyle='#fff'; ctx.font='700 13px '+FONT; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(String(k.ammo),0,5.5);
   ctx.restore();
-  if(k.waiting&&k.ammo>0&&!k.dying){ctx.fillStyle='rgba(255,255,255,.8)';ctx.font='500 10px '+FONT;ctx.textAlign='center';ctx.fillText(stuck==='tap'&&k.waitT>0.6?'chạm để bỏ':'chờ mục tiêu',x,y+SLOT_H/2-6)}
+  if(k.waiting&&k.ammo>0&&!k.dying){ctx.fillStyle='rgba(255,255,255,.8)';ctx.font='500 10px '+FONT;ctx.textAlign='center';ctx.fillText(SLOT_W<70?'chờ':'chờ mục tiêu',x,y+SLOT_H/2-6)}
 }
 
 /* ---------- input ---------- */
@@ -565,7 +549,7 @@ function toLogical(e){const r=cv.getBoundingClientRect();return {x:(e.clientX-r.
 function cellAt(p){const c=Math.floor((p.x-X0)/CS),r=Math.floor((p.y-B_TOP)/CS);return (r>=0&&r<ROWS&&c>=0&&c<COLS)?[r,c]:null}
 cv.addEventListener('pointerdown',e=>{
   const p=toLogical(e),cell=cellAt(p); if(G.over)return;
-  if(!cell){ if(stuck==='tap'&&p.y>=SLOT_Y&&p.y<=SLOT_Y+SLOT_H){ for(let i=0;i<NSLOT;i++){const x=slotX(i); if(p.x>=x&&p.x<=x+SLOT_W){ const k=G.slots[i]; if(k&&k.waiting) discardCannon(i); }}} return; }
+  if(!cell) return;
   cv.setPointerCapture(e.pointerId);
   if(G.sel&&Math.abs(G.sel[0]-cell[0])+Math.abs(G.sel[1]-cell[1])===1){ const a=G.sel; G.sel=null; trySwap(a,cell); G.drag=null; return; }
   G.drag={cell,x:p.x,y:p.y,done:false}; G.sel=cell;
@@ -582,7 +566,7 @@ cv.addEventListener('pointercancel',()=>{G.drag=null});
 
 /* ---------- loop ---------- */
 let last=performance.now();
-const api={timeScale:1,G,trySwap,findMove,loadLevel,discardCannon,pickTarget,setSlots};
+const api={timeScale:1,G,trySwap,findMove,loadLevel,pickTarget,setSlots};
 window.__jelly=api;
 function frame(now){
   let dt=Math.min(0.05,(now-last)/1000); last=now;

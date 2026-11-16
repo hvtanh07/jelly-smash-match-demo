@@ -1,0 +1,17 @@
+# Lần 4: 5 slot vs 4 slot, luật gốc (không gỡ kẹt), grid 9-12 cột
+keep slots=4 pace=1.5 L1: win 0/6, jammed 6/6, first jam avg 7s, jam 86% of time, avg time 50s, left 70%
+keep slots=4 pace=1.5 L2: win 0/6, jammed 6/6, first jam avg 12s, jam 77% of time, avg time 51s, left 64%
+keep slots=4 pace=1.5 L3: win 0/6, jammed 6/6, first jam avg 10s, jam 69% of time, avg time 34s, left 78%
+keep slots=4 pace=1.5 L4: win 0/6, jammed 6/6, first jam avg 6s, jam 68% of time, avg time 20s, left 93%
+keep slots=4 pace=3 L1: win 2/6, jammed 4/6, first jam avg 13s, jam 48% of time, avg time 44s, left 43%
+keep slots=4 pace=3 L2: win 0/6, jammed 5/6, first jam avg 26s, jam 39% of time, avg time 56s, left 49%
+keep slots=4 pace=3 L3: win 0/6, jammed 6/6, first jam avg 18s, jam 51% of time, avg time 39s, left 77%
+keep slots=4 pace=3 L4: win 0/6, jammed 5/6, first jam avg 7s, jam 45% of time, avg time 15s, left 95%
+keep slots=5 pace=1.5 L1: win 1/6, jammed 6/6, first jam avg 12s, jam 70% of time, avg time 65s, left 44%
+keep slots=5 pace=1.5 L2: win 0/6, jammed 6/6, first jam avg 17s, jam 75% of time, avg time 76s, left 38%
+keep slots=5 pace=1.5 L3: win 0/6, jammed 6/6, first jam avg 11s, jam 73% of time, avg time 43s, left 76%
+keep slots=5 pace=1.5 L4: win 0/6, jammed 6/6, first jam avg 8s, jam 68% of time, avg time 26s, left 87%
+keep slots=5 pace=3 L1: win 0/6, jammed 6/6, first jam avg 13s, jam 76% of time, avg time 56s, left 62%
+keep slots=5 pace=3 L2: win 2/6, jammed 4/6, first jam avg 23s, jam 34% of time, avg time 53s, left 43%
+keep slots=5 pace=3 L3: win 0/6, jammed 6/6, first jam avg 26s, jam 43% of time, avg time 48s, left 66%
+keep slots=5 pace=3 L4: win 0/6, jammed 4/6, first jam avg 13s, jam 32% of time, avg time 24s, left 89%
