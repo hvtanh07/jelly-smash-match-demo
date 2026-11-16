@@ -5,9 +5,13 @@ Demo chơi được, dựa trên GDD Jelly Smash (https://hvtanh07.github.io/gdd
 - Lối chơi chính đổi thành swap match-3: đổi chỗ 2 khối cạnh nhau để tạo hàng 3+ cùng màu.
 - Không còn cannon đặt sẵn. Có 1 hàng 5 slot chờ: mỗi lần match sinh 1 cannon cùng màu vào slot trống, bắn hết đạn thì cannon biến mất.
 
-Giữ nguyên theo GDD: đạn = 10 + 5 × (n − 3); cannon chỉ bắn khối cùng màu ở hàng đầu (khối thấp nhất mỗi cột) và đang nằm trong khung nhìn thấy, trái sang phải, không bắn xuyên, không có mục tiêu thì chờ; target grid trượt xuống từ lần swap đầu, chạm vạch đỏ là thua.
+Đạn của mỗi cannon = n (số khối của nhóm match), thay cho công thức GDD 10 + 5 × (n − 3).
+
+Giữ nguyên theo GDD: cannon chỉ bắn khối cùng màu ở hàng đầu (khối thấp nhất mỗi cột) và đang nằm trong khung nhìn thấy, trái sang phải, không bắn xuyên, không có mục tiêu thì chờ; target grid trượt xuống từ lần swap đầu, chạm vạch đỏ là thua.
 
 Chơi: https://hvtanh07.github.io/jelly-smash-match-demo/
+
+Khi khung target nhìn thấy còn dưới 8 khối và dưới 4 hàng, grid đi xuống nhanh gấp 3 (trừ khi khối thấp nhất đã cách vạch đỏ từ 2 hàng trở xuống).
 
 Board luôn có ít nhất 1 swap tạo hàng 3 của một màu ở hàng dưới cùng target grid.
 
@@ -17,6 +21,6 @@ Toàn bộ game nằm trong `index.html` (canvas, không cần build). Thanh ch�
 
 ## Bot playtest
 
-`node playtest/bot.js <random|smart>` (cần Playwright). Kết quả lần chạy 16/11/2026 ở `playtest/results-2026-11-16.txt`.
+`node playtest/bot.js <random|smart> <n|small|gdd>` (cần Playwright). Kết quả lần chạy 16/11/2026 ở `playtest/results-2026-11-16.txt`.
 
 Trang có meta `noindex`/`noai`. Repo này public.
