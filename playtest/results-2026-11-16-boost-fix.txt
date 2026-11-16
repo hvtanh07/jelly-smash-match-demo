@@ -1,0 +1,10 @@
+# Lần 7: tăng tốc x5 khi < 8 khối HOẶC grid phủ < 4 hàng khung, dừng khi hàng trên cùng đã lộ (smart bot, đạn = n)
+smart/n pace=1.5 L1: win 1/6, jam 54% of time, avg 51s, left 38% | boost 28% empty view 0% | idle checks 672 without good move 0 | shots 460 at hidden cubes 0
+smart/n pace=1.5 L2: win 2/6, jam 32% of time, avg 67s, left 24% | boost 25% empty view 0% | idle checks 908 without good move 0 | shots 800 at hidden cubes 0
+smart/n pace=1.5 L3: win 1/6, jam 36% of time, avg 64s, left 52% | boost 5% empty view 0% | idle checks 1033 without good move 0 | shots 686 at hidden cubes 0
+smart/n pace=1.5 L4: win 1/6, jam 26% of time, avg 56s, left 63% | boost 2% empty view 0% | idle checks 905 without good move 0 | shots 652 at hidden cubes 0
+smart/n pace=3 L1: win 1/6, jam 39% of time, avg 69s, left 43% | boost 9% empty view 0% | idle checks 1312 without good move 0 | shots 438 at hidden cubes 0
+smart/n pace=3 L2: win 0/6, jam 8% of time, avg 36s, left 76% | boost 2% empty view 0% | idle checks 703 without good move 0 | shots 266 at hidden cubes 0
+smart/n pace=3 L3: win 0/6, jam 2% of time, avg 35s, left 83% | boost 0% empty view 0% | idle checks 713 without good move 0 | shots 238 at hidden cubes 0
+smart/n pace=3 L4: win 0/6, jam 0% of time, avg 27s, left 89% | boost 0% empty view 0% | idle checks 538 without good move 0 | shots 212 at hidden cubes 0
+errors []

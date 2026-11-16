@@ -81,7 +81,7 @@ details b{color:var(--fg);font-weight:600}
       <li><b>Cannon:</b> mỗi nhóm match sinh 1 cannon cùng màu vào 1 slot trống trong hàng 5 slot. Đạn = n, n là số khối của nhóm (nhóm chữ L/T gộp thành một). Match 3 cho 3 đạn, match 5 cho 5 đạn.</li>
       <li><b>Bắn:</b> cannon chỉ bắn khối cùng màu ở hàng đầu (khối thấp nhất của mỗi cột) và đang nằm trong khung nhìn thấy, từ trái sang phải, không bắn xuyên. Không có mục tiêu thì chờ. Bắn hết đạn thì cannon biến mất.</li>
       <li><b>Target grid:</b> bắt đầu trượt xuống ở lần swap đầu tiên. Chạm vạch đỏ là thua, phá hết là thắng.</li>
-      <li><b>Tăng tốc:</b> khi khung target nhìn thấy còn dưới 8 khối và dưới 4 hàng, grid đi xuống nhanh gấp 3 cho đến khi đủ khối. Không tăng tốc khi khối thấp nhất đã cách vạch đỏ từ 2 hàng trở xuống.</li>
+      <li><b>Tăng tốc:</b> khi khung target nhìn thấy còn dưới 8 khối, hoặc grid chỉ phủ dưới 4 hàng của khung, grid đi xuống nhanh gấp 5 cho đến khi đủ. Khi hàng trên cùng của level đã lộ ra thì không tăng tốc nữa. Không tăng tốc khi khối thấp nhất đã cách vạch đỏ từ 2 hàng trở xuống.</li>
       <li><b>Luôn có nước đi tốt:</b> board luôn có ít nhất 1 lần swap tạo hàng 3 của một màu đang có ở hàng dưới cùng của target grid. Khi thiếu, game đổi màu vài khối mới đang rơi vào (không thấy được); nếu vẫn thiếu thì đổi màu vài khối trên board, các khối này lóe sáng.</li>
       <li><b>Màu khối mới:</b> theo tỉ lệ màu ở hàng dưới cùng của target grid (luật spawn của GDD), trộn thêm một phần ngẫu nhiên để board không bị một màu.</li>
       <li><b>Cannon kẹt:</b> cannon còn đạn nhưng hàng đầu không có màu của nó sẽ đứng chờ trong slot, không có cách bỏ. Hết slot trống thì cannon mới xử lý theo lựa chọn "Slot đầy".</li>
@@ -121,7 +121,7 @@ const PRAISE=n=>n>=10?'Epic':n>=8?'Extreme':n>=6?'Amazing':n>=5?'Great':'';
 const AMMO={gdd:n=>10+5*(n-3), n:n=>n, small:n=>5+2*(n-3)};
 let ammoMode='n';
 const ammoFor=n=>AMMO[ammoMode](n);
-const BOOST=3, BOOST_MAX_CUBES=8, BOOST_MAX_ROWS=4, BOOST_SAFE_ROWS=2;
+const BOOST=5, BOOST_MAX_CUBES=8, BOOST_MAX_ROWS=4, BOOST_SAFE_ROWS=2;
 
 /* ---------- storage (best effort) ---------- */
 const store={get(k,d){try{const v=localStorage.getItem('jsm.'+k);return v==null?d:v}catch(e){return d}},
@@ -230,11 +230,14 @@ function pickTarget(color){
 }
 /* colors of the bottom target row: the board must always offer a swap that matches one of them */
 function visibleStats(){
-  let cubes=0,rows=0; const lr=lowestAliveRow();
+  let cubes=0; const lr=lowestAliveRow();
   for(let r=0;r<G.tgrid.length;r++){const y=tcy(r); if(y<T_TOP||y>DANGER)continue;
-    const n=G.tgrid[r].filter(t=>t&&t.alive).length; if(n){cubes+=n;rows++}}
-  const gapRows=lr<0?99:(DANGER-(G.offY+(lr+1)*G.TCS))/G.TCS;
-  return {cubes,rows,gapRows};
+    cubes+=G.tgrid[r].filter(t=>t&&t.alive).length;}
+  // depth: how many rows of the view the grid reaches down into, from the top of the view to its lowest cube
+  const bottom=lr<0?T_TOP:G.offY+(lr+1)*G.TCS;
+  const depthRows=Math.max(0,(bottom-T_TOP)/G.TCS);
+  const gapRows=lr<0?99:(DANGER-bottom)/G.TCS;
+  return {cubes,depthRows,gapRows};
 }
 function bottomColors(){const s=new Set(),r=lowestAliveRow(); if(r>=0) G.tgrid[r].forEach(t=>{if(t&&t.alive)s.add(t.color)}); return s}
 /* spawn colors follow the GDD rule (share of each color in the bottom target row), blended with an even share so the board never floods */
@@ -486,7 +489,9 @@ function update(dt){
   if(G.started){
     // few cubes in view: speed up so there is always something to shoot, but never while the grid is close to the red line
     const v=visibleStats();
-    G.boost=(v.cubes<BOOST_MAX_CUBES&&v.rows<BOOST_MAX_ROWS&&v.gapRows>BOOST_SAFE_ROWS)?BOOST:1;
+    // no boost once the top row is already in view: nothing new would come in
+    const moreAbove=G.offY<T_TOP;
+    G.boost=(moreAbove&&(v.cubes<BOOST_MAX_CUBES||v.depthRows<BOOST_MAX_ROWS)&&v.gapRows>BOOST_SAFE_ROWS)?BOOST:1;
     G.offY+=G.speedPx*G.boost*dt;
   }
   // lose / win

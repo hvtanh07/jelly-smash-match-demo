@@ -11,7 +11,7 @@ Giữ nguyên theo GDD: cannon chỉ bắn khối cùng màu ở hàng đầu (k
 
 Chơi: https://hvtanh07.github.io/jelly-smash-match-demo/
 
-Khi khung target nhìn thấy còn dưới 8 khối và dưới 4 hàng, grid đi xuống nhanh gấp 3 (trừ khi khối thấp nhất đã cách vạch đỏ từ 2 hàng trở xuống).
+Khi khung target nhìn thấy còn dưới 8 khối, hoặc grid chỉ phủ dưới 4 hàng của khung, grid đi xuống nhanh gấp 5. Không tăng tốc khi khối thấp nhất đã cách vạch đỏ từ 2 hàng trở xuống, hoặc khi hàng trên cùng của level đã lộ ra.
 
 Board luôn có ít nhất 1 swap tạo hàng 3 của một màu ở hàng dưới cùng target grid.
 
