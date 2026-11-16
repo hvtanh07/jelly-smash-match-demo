@@ -1,0 +1,17 @@
+# Lần 2 (sau khi tăng số khối level 1–2 và tốc độ +10%)
+tap slots=4 pace=1.5 L1: win 6/6, jammed 3/6, first jam avg 6s, jam 2% of time, avg time 16s, left 0%
+tap slots=4 pace=1.5 L2: win 6/6, jammed 5/6, first jam avg 14s, jam 2% of time, avg time 30s, left 0%
+tap slots=4 pace=1.5 L3: win 6/6, jammed 5/6, first jam avg 12s, jam 2% of time, avg time 32s, left 0%
+tap slots=4 pace=1.5 L4: win 6/6, jammed 4/6, first jam avg 14s, jam 3% of time, avg time 39s, left 0%
+tap slots=4 pace=3 L1: win 6/6, jammed 1/6, first jam avg 3s, jam 1% of time, avg time 23s, left 0%
+tap slots=4 pace=3 L2: win 6/6, jammed 3/6, first jam avg 22s, jam 1% of time, avg time 52s, left 0%
+tap slots=4 pace=3 L3: win 6/6, jammed 2/6, first jam avg 32s, jam 1% of time, avg time 57s, left 0%
+tap slots=4 pace=3 L4: win 6/6, jammed 3/6, first jam avg 26s, jam 1% of time, avg time 67s, left 0%
+keep slots=4 pace=1.5 L1: win 3/6, jammed 4/6, first jam avg 7s, jam 46% of time, avg time 38s, left 35%
+keep slots=4 pace=1.5 L2: win 0/6, jammed 6/6, first jam avg 7s, jam 82% of time, avg time 35s, left 77%
+keep slots=4 pace=1.5 L3: win 0/6, jammed 6/6, first jam avg 6s, jam 79% of time, avg time 28s, left 80%
+keep slots=4 pace=1.5 L4: win 0/6, jammed 6/6, first jam avg 7s, jam 75% of time, avg time 35s, left 79%
+keep slots=4 pace=3 L1: win 2/6, jammed 6/6, first jam avg 14s, jam 57% of time, avg time 49s, left 48%
+keep slots=4 pace=3 L2: win 0/6, jammed 6/6, first jam avg 11s, jam 66% of time, avg time 33s, left 78%
+keep slots=4 pace=3 L3: win 0/6, jammed 6/6, first jam avg 9s, jam 65% of time, avg time 27s, left 83%
+keep slots=4 pace=3 L4: win 0/6, jammed 6/6, first jam avg 13s, jam 66% of time, avg time 38s, left 80%
