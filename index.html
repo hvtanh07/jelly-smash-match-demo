@@ -79,8 +79,9 @@ details b{color:var(--fg);font-weight:600}
     <ul>
       <li><b>Board:</b> đổi chỗ 2 khối jelly cạnh nhau (kéo hoặc chạm lần lượt). Chỉ đổi khi tạo được hàng 3+ cùng màu, nếu không khối trượt về chỗ cũ. Khối rơi xuống, khối mới rơi từ trên vào, có combo dây chuyền.</li>
       <li><b>Cannon:</b> mỗi nhóm match sinh 1 cannon cùng màu vào 1 slot trống trong hàng 5 slot. Đạn = 10 + 5 × (n − 3), n là số khối của nhóm (nhóm chữ L/T gộp thành một).</li>
-      <li><b>Bắn:</b> cannon chỉ bắn khối cùng màu ở hàng đầu (khối thấp nhất của mỗi cột), từ trái sang phải, không bắn xuyên. Không có mục tiêu thì chờ. Bắn hết đạn thì cannon biến mất.</li>
+      <li><b>Bắn:</b> cannon chỉ bắn khối cùng màu ở hàng đầu (khối thấp nhất của mỗi cột) và đang nằm trong khung nhìn thấy, từ trái sang phải, không bắn xuyên. Không có mục tiêu thì chờ. Bắn hết đạn thì cannon biến mất.</li>
       <li><b>Target grid:</b> bắt đầu trượt xuống ở lần swap đầu tiên. Chạm vạch đỏ là thua, phá hết là thắng.</li>
+      <li><b>Luôn có nước đi tốt:</b> board luôn có ít nhất 1 lần swap tạo hàng 3 của một màu đang có ở hàng dưới cùng của target grid. Khi thiếu, game đổi màu vài khối mới đang rơi vào (không thấy được); nếu vẫn thiếu thì đổi màu vài khối trên board, các khối này lóe sáng.</li>
       <li><b>Màu khối mới:</b> theo tỉ lệ màu ở hàng dưới cùng của target grid (luật spawn của GDD), trộn thêm một phần ngẫu nhiên để board không bị một màu.</li>
       <li><b>Cannon kẹt:</b> cannon còn đạn nhưng hàng đầu không có màu của nó sẽ đứng chờ trong slot, không có cách bỏ. Hết slot trống thì cannon mới xử lý theo lựa chọn "Slot đầy".</li>
       <li><b>Màu đã hết trên target:</b> match màu đó không sinh cannon, cannon đang chờ màu đó tự biến mất.</li>
@@ -220,9 +221,11 @@ function aliveTotal(){let n=0;for(const row of G.tgrid)for(const t of row)if(t&&
 function lowestAliveRow(){for(let r=G.tgrid.length-1;r>=0;r--)if(G.tgrid[r].some(t=>t&&t.alive))return r;return -1}
 function pickTarget(color){
   for(let c=0;c<G.TC;c++){const r=frontRow(c); if(r<0)continue; const t=G.tgrid[r][c];
-    if(t.color===color&&!t.targeted) return {r,c,t};}
+    if(t.color===color&&!t.targeted&&tcy(r)>=T_TOP) return {r,c,t};}   // only cubes whose center is inside the visible target area
   return null;
 }
+/* colors of the bottom target row: the board must always offer a swap that matches one of them */
+function bottomColors(){const s=new Set(),r=lowestAliveRow(); if(r>=0) G.tgrid[r].forEach(t=>{if(t&&t.alive)s.add(t.color)}); return s}
 /* spawn colors follow the GDD rule (share of each color in the bottom target row), blended with an even share so the board never floods */
 function spawnWeights(){
   const present=new Set(); for(const row of G.tgrid)for(const t of row)if(t&&t.alive)present.add(t.color);
@@ -256,6 +259,7 @@ function fillBoard(){
     G.board[r].push(tile(pickColor(w,avoid),r,c,cy(r)-CS*(ROWS+1)+r*4));
   }}
   if(!hasMoves()) reshuffle();
+  ensureGoodMove(false);
   G.state='fall0';
 }
 const col=(r,c)=>{const t=G.board[r]&&G.board[r][c];return t&&!t.dying?t.color:-1};
@@ -290,6 +294,48 @@ function findMove(){
   return null;
 }
 const hasMoves=()=>!!findMove();
+function hasGoodMove(cols){
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)for(const [dr,dc] of [[0,1],[1,0]]){
+    const r2=r+dr,c2=c+dc; if(r2>=ROWS||c2>=COLS)continue;
+    swapCells([r,c],[r2,c2]);
+    const ok=(lineAt(r,c)&&cols.has(col(r,c)))||(lineAt(r2,c2)&&cols.has(col(r2,c2)));
+    swapCells([r,c],[r2,c2]);
+    if(ok) return true;
+  }
+  return false;
+}
+/* recolor a few allowed tiles so that one swap makes a line of 3 in a bottom-row color, without making a match right away */
+function plantMove(cols,allowed){
+  const ks=[...cols]; if(!ks.length) return null;
+  const pool=[...spawnWeights().keys()];
+  for(let tries=0;tries<400;tries++){
+    const k=ks[Math.floor(Math.random()*ks.length)], horiz=Math.random()<.5;
+    const r0=Math.floor(Math.random()*ROWS), c0=Math.floor(Math.random()*COLS);
+    const line=horiz?[[r0,c0],[r0,c0+1],[r0,c0+2]]:[[r0,c0],[r0+1,c0],[r0+2,c0]];
+    if(line.some(([r,c])=>r>=ROWS||c>=COLS)) continue;
+    const gi=Math.floor(Math.random()*3), [gr,gc]=line[gi];
+    const nbs=horiz?[[gr-1,gc],[gr+1,gc]]:[[gr,gc-1],[gr,gc+1]];
+    if(gi===0) nbs.push(horiz?[gr,gc-1]:[gr-1,gc]); if(gi===2) nbs.push(horiz?[gr,gc+1]:[gr+1,gc]);
+    const [yr,yc]=nbs[Math.floor(Math.random()*nbs.length)];
+    if(yr<0||yr>=ROWS||yc<0||yc>=COLS) continue;
+    const cells=[...line.filter((_,i)=>i!==gi),[yr,yc]];
+    const gapK=G.board[gr][gc].color===k;
+    const touched=[...cells.filter(([r,c])=>G.board[r][c].color!==k),...(gapK?[[gr,gc]]:[])];
+    if(touched.some(([r,c])=>!allowed(r,c))) continue;
+    const saved=[...cells,[gr,gc]].map(([r,c])=>[r,c,G.board[r][c].color]);
+    cells.forEach(([r,c])=>G.board[r][c].color=k);
+    if(gapK){const o=pool.filter(x=>x!==k); G.board[gr][gc].color=o[Math.floor(Math.random()*o.length)]}
+    if(findGroups().length===0&&hasGoodMove(cols)) return touched;
+    saved.forEach(([r,c,v])=>G.board[r][c].color=v);
+  }
+  return null;
+}
+function ensureGoodMove(visible){
+  const cols=bottomColors(); G.goodCols=[...cols].sort().join();
+  if(!cols.size||hasGoodMove(cols)) return;
+  const done=plantMove(cols,()=>true);
+  if(done&&visible) done.forEach(([r,c])=>{const t=G.board[r][c]; t.glow=1; t.squash=1});
+}
 function reshuffle(){
   const tiles=G.board.flat();
   for(let tries=0;tries<80;tries++){
@@ -328,10 +374,14 @@ function gravity(){
     const missing=ROWS-keep.length, w=spawnWeights();
     for(let r=ROWS-1,i=0;r>=0;r--,i++){
       if(i<keep.length){G.board[r][c]=keep[i];keep[i].spd=900}
-      else{const k=i-keep.length; G.board[r][c]=tile(pickColor(w,new Set()),r,c,B_TOP-CS/2-k*CS-6); }
+      else{const k=i-keep.length; const t=tile(pickColor(w,new Set()),r,c,B_TOP-CS/2-k*CS-6); t.fresh=true; G.board[r][c]=t; }
     }
     void missing;
   }
+  // new tiles are still above the board, so recoloring them here is invisible
+  const cols=bottomColors();
+  if(cols.size&&findGroups().length===0&&!hasGoodMove(cols)) plantMove(cols,(r,c)=>G.board[r][c].fresh);
+  for(const row of G.board) for(const t of row) t.fresh=false;
 }
 
 /* ---------- cannons ---------- */
@@ -399,7 +449,7 @@ function update(dt){
   for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const t=G.board[r][c];if(!t)continue;
     const tx=cx(c),ty=cy(r),dx=tx-t.px,dy=ty-t.py,d=Math.hypot(dx,dy),step=t.spd*dt;
     if(d<=step){ if(d>2&&dy>2) t.squash=1; t.px=tx;t.py=ty }else{t.px+=dx/d*step;t.py+=dy/d*step}
-    t.squash=Math.max(0,t.squash-dt*5);
+    t.squash=Math.max(0,t.squash-dt*5); if(t.glow) t.glow=Math.max(0,t.glow-dt*1.5);
     if(t.dying) t.dying+=dt;
   }
   // board state machine
@@ -414,12 +464,14 @@ function update(dt){
   else if(G.state==='fall'&&settled()){
     const g=findGroups();
     if(g.length) resolveGroups(g);
-    else { if(!hasMoves()) { reshuffle(); popup(W/2,B_TOP+ROWS*CS/2,'Xáo bài','#fff',''); } G.state='idle'; }
+    else { if(!hasMoves()) { reshuffle(); popup(W/2,B_TOP+ROWS*CS/2,'Xáo bài','#fff',''); } ensureGoodMove(true); G.state='idle'; }
   }
   if(G.state==='idle'&&!G.over){ G.idle+=dt; if(G.idle>5&&!G.hint) G.hint=findMove(); }
 
   if(G.over) return;
   updateCannons(dt); updateShots(dt);
+  // the bottom row can change while the player thinks (cubes shot): re-check then
+  if(G.state==='idle'&&[...bottomColors()].sort().join()!==G.goodCols) ensureGoodMove(true);
   if(G.started) G.offY+=G.speedPx*dt;
   // lose / win
   const lr=lowestAliveRow();
@@ -476,6 +528,7 @@ function draw(){
     const sel=G.sel&&G.sel[0]===r&&G.sel[1]===c;
     const hint=hintOn&&G.hint.some(([a,b])=>a===r&&b===c);
     if(sel||hint){ctx.fillStyle=sel?'rgba(255,255,255,.22)':'rgba(255,217,61,.25)';rr(ctx,X0+c*CS+1,B_TOP+r*CS+1,CS-2,CS-2,12);ctx.fill()}
+    if(t.glow){ctx.globalAlpha=t.glow*.6;ctx.fillStyle='#fff';rr(ctx,t.px-23,t.py-23,46,46,14);ctx.fill();ctx.globalAlpha=1}
     if(s>0) drawSpr(SPR.board[t.color],t.px,t.py+(1-sy)*14,42*s,sx*(sel?1.08:1),sy*(sel?1.08:1));
   }
   ctx.restore();
@@ -566,7 +619,7 @@ cv.addEventListener('pointercancel',()=>{G.drag=null});
 
 /* ---------- loop ---------- */
 let last=performance.now();
-const api={timeScale:1,G,trySwap,findMove,loadLevel,pickTarget,setSlots};
+const api={timeScale:1,G,trySwap,findMove,loadLevel,pickTarget,setSlots,hasGoodMove,bottomColors,tcy,T_TOP};
 window.__jelly=api;
 function frame(now){
   let dt=Math.min(0.05,(now-last)/1000); last=now;

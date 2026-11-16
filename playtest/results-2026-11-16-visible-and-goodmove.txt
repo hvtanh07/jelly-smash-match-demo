@@ -1,0 +1,10 @@
+# Lần 5: chỉ bắn khối nhìn thấy + luôn có swap tạo hàng 3 màu hàng dưới cùng (5 slot, luật gốc)
+smart pace=1.5 L1: win 0/6, jam 87% of time, avg 77s, left 55% | idle checks 1009 without good move 0 | shots 344 at hidden cubes 0
+smart pace=1.5 L2: win 0/6, jam 83% of time, avg 71s, left 57% | idle checks 998 without good move 0 | shots 442 at hidden cubes 0
+smart pace=1.5 L3: win 0/6, jam 74% of time, avg 55s, left 70% | idle checks 877 without good move 1 | shots 419 at hidden cubes 0
+smart pace=1.5 L4: win 0/6, jam 75% of time, avg 33s, left 87% | idle checks 519 without good move 0 | shots 226 at hidden cubes 0
+smart pace=3 L1: win 1/6, jam 83% of time, avg 85s, left 48% | idle checks 1595 without good move 1 | shots 404 at hidden cubes 0
+smart pace=3 L2: win 1/6, jam 73% of time, avg 105s, left 39% | idle checks 2012 without good move 0 | shots 647 at hidden cubes 0
+smart pace=3 L3: win 0/6, jam 65% of time, avg 65s, left 65% | idle checks 1315 without good move 1 | shots 486 at hidden cubes 0
+smart pace=3 L4: win 0/6, jam 53% of time, avg 43s, left 80% | idle checks 882 without good move 0 | shots 364 at hidden cubes 0
+errors []
