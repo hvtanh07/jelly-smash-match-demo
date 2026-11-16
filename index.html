@@ -116,10 +116,11 @@ const COLORS=[
   {name:'Nho',  base:'#a66bff',light:'#d5b9ff',dark:'#6c34c8'},
 ];
 const LEVELS=[
-  {rows:14,palette:[0,1,3,4],    speed:3.96,seed:11},
-  {rows:18,palette:[0,1,2,3,4],  speed:4.84,seed:23},
-  {rows:18,palette:[0,1,2,3,4,5],speed:5.72,seed:37},
-  {rows:22,palette:[0,1,2,3,4,5],speed:6.6,seed:51},
+  /* cols/rows: target grid size. speed: px/s for a 46 px row, scaled to the target cell size */
+  {cols:9, rows:16,palette:[0,1,3,4],    speed:3.96,seed:11},
+  {cols:10,rows:20,palette:[0,1,2,3,4],  speed:4.84,seed:23},
+  {cols:11,rows:24,palette:[0,1,2,3,4,5],speed:5.72,seed:37},
+  {cols:12,rows:28,palette:[0,1,2,3,4,5],speed:6.6,seed:51},
 ];
 const PRAISE=n=>n>=10?'Epic':n>=8?'Extreme':n>=6?'Amazing':n>=5?'Great':'';
 const ammoFor=n=>10+5*(n-3);
@@ -192,13 +193,14 @@ function drawSpr(img,cx,cy,size,sx=1,sy=1){ctx.drawImage(img,cx-size*sx/2,cy-siz
 const G={};
 function genTargets(L){
   const rnd=mulberry32(L.seed), grid=[];
-  for(let r=0;r<L.rows;r++) grid.push(new Array(COLS).fill(null));
+  const TC=L.cols;
+  for(let r=0;r<L.rows;r++) grid.push(new Array(TC).fill(null));
   let r=0;
   while(r<L.rows){
     let h=2+Math.floor(rnd()*2); h=Math.min(h,L.rows-r);
     let c=0,prev=-1;
-    while(c<COLS){
-      let w=2+Math.floor(rnd()*3); if(c+w>COLS) w=COLS-c; if(COLS-(c+w)===1) w+=(w<4?1:-1);
+    while(c<TC){
+      let w=2+Math.floor(rnd()*3); if(c+w>TC) w=TC-c; if(TC-(c+w)===1) w+=(w<4?1:-1);
       let col; let guard=0;
       do{col=L.palette[Math.floor(rnd()*L.palette.length)]}while((col===prev || (r>0&&grid[r-1][c]&&grid[r-1][c].color===col)) && guard++<12);
       for(let rr2=r;rr2<r+h;rr2++) for(let cc=c;cc<c+w;cc++) grid[rr2][cc]={color:col,alive:true,targeted:false};
@@ -214,8 +216,9 @@ function loadLevel(i){
     board:[],state:'idle',sel:null,drag:null,clearT:0,cascade:0,
     slots:new Array(NSLOT).fill(null),queue:[],shots:[],parts:[],flies:[],pops:[],
     matches:0,cannonsMade:0,time:0,hint:null,idle:0,lostAmmo:0});
-  G.offY=DANGER-2*CS-L.rows*CS;
-  G.total=L.rows*COLS;
+  G.TC=L.cols; G.TCS=COLS*CS/L.cols; G.TX0=X0; G.speedPx=L.speed*G.TCS/CS;
+  G.offY=DANGER-2*G.TCS-L.rows*G.TCS;
+  G.total=L.rows*L.cols;
   fillBoard();
   ov.hidden=true;
 }
@@ -226,7 +229,7 @@ function untargeted(color){let n=0;for(const row of G.tgrid)for(const t of row)i
 function aliveTotal(){let n=0;for(const row of G.tgrid)for(const t of row)if(t&&t.alive)n++;return n}
 function lowestAliveRow(){for(let r=G.tgrid.length-1;r>=0;r--)if(G.tgrid[r].some(t=>t&&t.alive))return r;return -1}
 function pickTarget(color){
-  for(let c=0;c<COLS;c++){const r=frontRow(c); if(r<0)continue; const t=G.tgrid[r][c];
+  for(let c=0;c<G.TC;c++){const r=frontRow(c); if(r<0)continue; const t=G.tgrid[r][c];
     if(t.color===color&&!t.targeted) return {r,c,t};}
   return null;
 }
@@ -251,6 +254,7 @@ function pickColor(w,avoid){
 
 /* ---------- board ---------- */
 const cx=c=>X0+c*CS+CS/2, cy=r=>B_TOP+r*CS+CS/2;
+const tcx=c=>G.TX0+c*G.TCS+G.TCS/2, tcy=r=>G.offY+r*G.TCS+G.TCS/2;
 function tile(color,r,c,fromY){return {color,px:cx(c),py:fromY==null?cy(r):fromY,spd:900,dying:0,squash:0}}
 function fillBoard(){
   const w=spawnWeights();
@@ -398,7 +402,7 @@ function updateShots(dt){
     const s=G.shots[i]; s.t+=dt/0.26;
     if(s.t>=1){
       const t=G.tgrid[s.r][s.c]; t.alive=false; s.k.inflight--;
-      const x=cx(s.c), y=G.offY+s.r*CS+CS/2;
+      const x=tcx(s.c), y=tcy(s.r);
       for(let j=0;j<10;j++){const a=Math.random()*Math.PI*2,v=60+Math.random()*140;G.parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-40,life:0.5,max:0.5,color:s.color,r:3+Math.random()*3})}
       G.shots.splice(i,1);
     }
@@ -433,11 +437,11 @@ function update(dt){
 
   if(G.over) return;
   updateCannons(dt); updateShots(dt);
-  if(G.started) G.offY+=G.L.speed*dt;
+  if(G.started) G.offY+=G.speedPx*dt;
   // lose / win
   const lr=lowestAliveRow();
   if(lr<0&&G.shots.length===0){ finish('win'); }
-  else if(lr>=0&&G.offY+(lr+1)*CS-3>=DANGER){ finish('lose'); }
+  else if(lr>=0&&G.offY+(lr+1)*G.TCS-3>=DANGER){ finish('lose'); }
 }
 function updateFx(dt){
   for(let i=G.parts.length-1;i>=0;i--){const p=G.parts[i];p.life-=dt;p.vy+=420*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;if(p.life<=0)G.parts.splice(i,1)}
@@ -464,16 +468,17 @@ function draw(){
   drawHud();
   // target area
   ctx.save(); rr(ctx,X0-6,T_TOP,COLS*CS+12,DANGER-T_TOP,14); ctx.fillStyle='rgba(10,4,24,.45)'; ctx.fill(); ctx.clip();
-  for(let r=0;r<G.tgrid.length;r++){const y=G.offY+r*CS+CS/2; if(y<T_TOP-CS||y>DANGER+CS)continue;
-    for(let c=0;c<COLS;c++){const t=G.tgrid[r][c]; if(!t||!t.alive)continue;
+  const TS=G.TCS*0.88, TH=TS/2;
+  for(let r=0;r<G.tgrid.length;r++){const y=tcy(r); if(y<T_TOP-G.TCS||y>DANGER+G.TCS)continue;
+    for(let c=0;c<G.TC;c++){const t=G.tgrid[r][c]; if(!t||!t.alive)continue;
       const front=frontRow(c)===r;
-      ctx.globalAlpha=front?1:0.82; drawSpr(SPR.target[t.color],cx(c),y,40); ctx.globalAlpha=1;
-      if(t.targeted){ctx.strokeStyle='rgba(255,255,255,.8)';ctx.lineWidth=2;rr(ctx,cx(c)-19,y-19,38,36,9);ctx.stroke()}
+      ctx.globalAlpha=front?1:0.82; drawSpr(SPR.target[t.color],tcx(c),y,TS); ctx.globalAlpha=1;
+      if(t.targeted){ctx.strokeStyle='rgba(255,255,255,.8)';ctx.lineWidth=2;rr(ctx,tcx(c)-TH+1,y-TH+1,TS-2,TS-4,TS*0.22);ctx.stroke()}
     }}
   ctx.restore();
   // danger line
-  const lr=lowestAliveRow(), gap=lr>=0?DANGER-(G.offY+(lr+1)*CS):999;
-  const warn=gap<CS*1.2 && !G.over;
+  const lr=lowestAliveRow(), gap=lr>=0?DANGER-(G.offY+(lr+1)*G.TCS):999;
+  const warn=gap<G.TCS*1.2 && !G.over;
   ctx.strokeStyle=warn&&Math.floor(G.time*4)%2?'#ff3d5f':'rgba(255,90,120,.7)'; ctx.lineWidth=3; ctx.setLineDash([8,6]);
   ctx.beginPath(); ctx.moveTo(X0-6,DANGER); ctx.lineTo(X0+COLS*CS+6,DANGER); ctx.stroke(); ctx.setLineDash([]);
   drawSlots();
@@ -495,7 +500,7 @@ function draw(){
     ctx.fillStyle='#fff'; ctx.font='600 15px '+FONT; ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.fillText('Đổi chỗ 2 khối để tạo hàng 3',W/2,B_TOP+ROWS*CS/2); }
   // shots
-  for(const s of G.shots){const tx=cx(s.c),ty=G.offY+s.r*CS+CS/2,e=ease(s.t);
+  for(const s of G.shots){const tx=tcx(s.c),ty=tcy(s.r),e=ease(s.t);
     const x=lerp(s.x0,tx,e),y=lerp(s.y0,ty,e)-Math.sin(s.t*Math.PI)*18;
     ctx.fillStyle=COLORS[s.color].light; ctx.beginPath(); ctx.arc(x,y,6,0,Math.PI*2); ctx.fill();
     ctx.fillStyle=COLORS[s.color].base; ctx.beginPath(); ctx.arc(x,y+1.5,4,0,Math.PI*2); ctx.fill();}

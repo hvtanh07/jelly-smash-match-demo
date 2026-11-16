@@ -9,6 +9,8 @@ Giữ nguyên theo GDD: đạn = 10 + 5 × (n − 3); cannon chỉ bắn khối 
 
 Chơi: https://hvtanh07.github.io/jelly-smash-match-demo/
 
+Target grid: level 1 9×16, level 2 10×20, level 3 11×24, level 4 12×28 (cột × hàng). Board match-3 vẫn 7×7.
+
 Toàn bộ game nằm trong `index.html` (canvas, không cần build). Thanh chọn trên đầu cho đổi luật khi slot đầy và cách xử lý cannon kẹt.
 
 ## Bot playtest

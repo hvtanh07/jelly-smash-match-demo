@@ -1,0 +1,17 @@
+# Lần 3: target grid 9-12 cột, 16-28 hàng
+tap slots=4 pace=1.5 L1: win 6/6, jammed 5/6, first jam avg 15s, jam 3% of time, avg time 25s, left 0%
+tap slots=4 pace=1.5 L2: win 6/6, jammed 4/6, first jam avg 25s, jam 2% of time, avg time 36s, left 0%
+tap slots=4 pace=1.5 L3: win 6/6, jammed 6/6, first jam avg 13s, jam 3% of time, avg time 51s, left 0%
+tap slots=4 pace=1.5 L4: win 6/6, jammed 4/6, first jam avg 7s, jam 2% of time, avg time 70s, left 0%
+tap slots=4 pace=3 L1: win 6/6, jammed 3/6, first jam avg 23s, jam 2% of time, avg time 36s, left 0%
+tap slots=4 pace=3 L2: win 5/6, jammed 0/6, first jam avg -s, jam 0% of time, avg time 52s, left 13%
+tap slots=4 pace=3 L3: win 3/6, jammed 1/6, first jam avg 92s, jam 0% of time, avg time 62s, left 40%
+tap slots=4 pace=3 L4: win 1/6, jammed 2/6, first jam avg 71s, jam 0% of time, avg time 61s, left 60%
+keep slots=4 pace=1.5 L1: win 0/6, jammed 6/6, first jam avg 10s, jam 85% of time, avg time 66s, left 52%
+keep slots=4 pace=1.5 L2: win 0/6, jammed 6/6, first jam avg 7s, jam 81% of time, avg time 35s, left 80%
+keep slots=4 pace=1.5 L3: win 0/6, jammed 6/6, first jam avg 10s, jam 71% of time, avg time 44s, left 70%
+keep slots=4 pace=1.5 L4: win 0/6, jammed 6/6, first jam avg 6s, jam 71% of time, avg time 19s, left 93%
+keep slots=4 pace=3 L1: win 0/6, jammed 6/6, first jam avg 15s, jam 77% of time, avg time 60s, left 58%
+keep slots=4 pace=3 L2: win 0/6, jammed 6/6, first jam avg 20s, jam 65% of time, avg time 56s, left 56%
+keep slots=4 pace=3 L3: win 0/6, jammed 4/6, first jam avg 20s, jam 29% of time, avg time 30s, left 77%
+keep slots=4 pace=3 L4: win 0/6, jammed 5/6, first jam avg 10s, jam 42% of time, avg time 19s, left 93%
