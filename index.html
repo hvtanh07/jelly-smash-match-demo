@@ -84,6 +84,7 @@ details b{color:var(--fg);font-weight:600}
       <li><b>Tăng tốc:</b> khi khung target nhìn thấy còn dưới 8 khối, hoặc grid chỉ phủ dưới 4 hàng của khung, grid đi xuống nhanh gấp 5 cho đến khi đủ. Khi hàng trên cùng của level đã lộ ra thì không tăng tốc nữa. Không tăng tốc khi khối thấp nhất đã cách vạch đỏ từ 2 hàng trở xuống.</li>
       <li><b>Luôn có nước đi tốt:</b> board luôn có ít nhất 1 lần swap tạo hàng 3 của một màu đang có ở hàng dưới cùng của target grid. Khi thiếu, game đổi màu vài khối mới đang rơi vào (không thấy được); nếu vẫn thiếu thì đổi màu vài khối trên board, các khối này lóe sáng.</li>
       <li><b>Màu khối mới:</b> theo tỉ lệ màu ở hàng dưới cùng của target grid (luật spawn của GDD), trộn thêm một phần ngẫu nhiên để board không bị một màu.</li>
+      <li><b>Gộp cannon:</b> khi trong slot có 3 cannon cùng màu, chúng gộp thành 1 cannon ở slot bên trái nhất, đạn bằng tổng cả 3, trả lại 2 slot trống.</li>
       <li><b>Cannon kẹt:</b> cannon còn đạn nhưng hàng đầu không có màu của nó sẽ đứng chờ trong slot, không có cách bỏ. Hết slot trống thì cannon mới xử lý theo lựa chọn "Slot đầy", mặc định là mất lượt (match vẫn phá khối trên board nhưng không sinh cannon).</li>
       <li><b>Màu đã hết trên target:</b> match màu đó không sinh cannon, cannon đang chờ màu đó tự biến mất.</li>
     </ul>
@@ -210,7 +211,7 @@ function loadLevel(i){
   Object.assign(G,{level:i,L,tgrid:genTargets(L),offY:0,started:false,over:null,
     board:[],state:'idle',sel:null,drag:null,clearT:0,cascade:0,
     slots:new Array(NSLOT).fill(null),queue:[],shots:[],parts:[],flies:[],pops:[],
-    matches:0,cannonsMade:0,time:0,hint:null,idle:0,lostAmmo:0});
+    matches:0,cannonsMade:0,merges:0,time:0,hint:null,idle:0,lostAmmo:0});
   G.TC=L.cols; G.TCS=COLS*CS/L.cols; G.TX0=X0; G.speedPx=L.speed*G.TCS/CS;
   G.offY=DANGER-2*G.TCS-L.rows*G.TCS;
   G.total=L.rows*L.cols;
@@ -424,7 +425,26 @@ function pullQueue(){
     while(G.queue.length){const q=G.queue.shift(); if(untargeted(q.color)>0){G.slots[i]=newCannon(q.color,q.ammo);break}}
   }
 }
+/* 3 cannons of one color in the slots merge into the leftmost one, with the sum of their ammo */
+function mergeTriples(){
+  const by=new Map();
+  G.slots.forEach((k,i)=>{ if(k&&!k.dying&&k.ammo>0){ if(!by.has(k.color)) by.set(k.color,[]); by.get(k.color).push(i);} });
+  for(const [color,idx] of by){
+    if(idx.length<3) continue;
+    const [a,b,c]=idx, keep=G.slots[a];
+    for(const j of [b,c]){
+      const k=G.slots[j];
+      keep.ammo+=k.ammo; keep.inflight+=k.inflight;
+      for(const sh of G.shots) if(sh.k===k) sh.k=keep;
+      fly(slotC(j),slotC(a),color);
+      G.slots[j]=null;
+    }
+    keep.pop=1; G.merges=(G.merges||0)+1;
+    const sc=slotC(a); popup(sc.x,sc.y-30,'Gộp ×3',COLORS[color].light,'');
+  }
+}
 function updateCannons(dt){
+  mergeTriples();
   for(let i=0;i<NSLOT;i++){
     const k=G.slots[i]; if(!k)continue;
     k.pop=Math.max(0,k.pop-dt*3.5); k.recoil=Math.max(0,k.recoil-dt*9); k.flash=Math.max(0,k.flash-dt*6);

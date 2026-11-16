@@ -13,6 +13,8 @@ Chơi: https://hvtanh07.github.io/jelly-smash-match-demo/
 
 Khi khung target nhìn thấy còn dưới 8 khối, hoặc grid chỉ phủ dưới 4 hàng của khung, grid đi xuống nhanh gấp 5. Không tăng tốc khi khối thấp nhất đã cách vạch đỏ từ 2 hàng trở xuống, hoặc khi hàng trên cùng của level đã lộ ra.
 
+Khi trong slot có 3 cannon cùng màu, chúng gộp thành 1 cannon (slot trái nhất) với đạn bằng tổng cả 3.
+
 Board luôn có ít nhất 1 swap tạo hàng 3 của một màu ở hàng dưới cùng target grid.
 
 Target grid: level 1 9×16, level 2 10×20, level 3 11×24, level 4 12×28 (cột × hàng). Board match-3 vẫn 7×7.
