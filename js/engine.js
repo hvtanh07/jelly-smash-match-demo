@@ -2,8 +2,9 @@
    plus three test options from the 2026-11-24 fun report, each one can be turned off:
    A power: every match adds to a Power meter; a cannon that would be lost (slots full, no target, color gone) adds its ammo.
             Full meter = Super blast: rainbow shots at the front ants.
-   B specials (they go to a rack of 3 above the slots, so they never take or block a slot): a straight 4 makes a Line cannon (each shot also hits the same-color ants behind in that column),
-            a straight 5+ a Rainbow cannon (hits any color), a T/L shape a Bomb cannon (each shot blasts 3x3).
+   B specials (2026-11-24 v2, user): a straight 4 throws 3 piercing bombs straight up at the columns whose ants are lowest,
+            each hits the 3 lowest ants of its column (any color); a T/L shape throws 1 bomb at a random ant near the bottom rows,
+            3x3 blast (any color); a straight 5+ makes a Rainbow cannon (hits any color) that goes in the normal slots.
    C combo: cascades add ammo (+1 per step of the chain); the feel part lives in the renderer.
    Original header: Jelly Smash rules for the play test, the bot and the tests. No DOM here.
    Rules follow the GDD (sections 1.1, 1.2, 1.4, 1.5) and the timings in the level file.
@@ -17,9 +18,11 @@ export const BOMB_AMMO=15;                 // GDD 1.5 Bomb
 export const POWER_MAX=40;                 // A: meter size
 export const POWER_PER_MATCH=1;            // A: every match
 export const SUPER_SHOTS=8;                // A: Super blast shots
-export const PIERCE=3;                     // B: Line cannon, extra ants hit behind the target
-export const RACK=3;                       // B: special cannons sit on their own rack above the slots, never in a slot
-const specialAmmo={line:n=>n-1,rainbow:n=>n,bomb:n=>Math.max(3,n-2)};
+export const LINE_BOMBS=3,LINE_DEPTH=3;    // B: straight 4 = 3 bombs, each hits 3 ants up its column
+export const BOMB_ROWS=3;                  // B: T/L bomb lands on an ant in the lowest 3 rows that have ants in view
+export const THROW_FLIGHT=0.55;
+export const RACK=0;                       // old v1 rack, gone
+const specialAmmo={line:n=>0,rainbow:n=>n,bomb:n=>0};
 /* B: the kind of cannon a group makes. Straight = all cells in one row or one column. */
 export function groupKind(cells){
   const n=cells.length;if(n<4)return null;
@@ -283,8 +286,14 @@ function clearGroups(G){
     const combo=G.opt.combo&&G.chain>1?G.chain-1:0;
     const ammo=(special?specialAmmo[special](n):ammoFor(n))+bonus+combo,at={r:sr/n,c:sc/n};
     addPower(G,POWER_PER_MATCH,'match');
-    const tcol=special==='rainbow'?'*':g.color;
+    const tcol=special?'*':g.color;
     if(available(G,tcol)<=0){G.events.push({type:'notarget',color:g.color,at});countLocks(G,g.color,'match');addPower(G,ammo,'notarget');continue;}
+    if(special==='line'||special==='bomb'){
+      countLocks(G,g.color,'match');G.stats.specials++;
+      const n2=special==='line'?throwLine(G,at):throwBomb(G,at);
+      G.events.push({type:'match',color:g.color,n,ammo:0,bonus,combo,chain:G.chain,special,throws:n2,at,praise:praise(n),cells:g.cells.map(x=>x.slice())});
+      continue;
+    }
     G.flights.push({color:g.color,ammo,n,special,t:+G.lv.MatchFlight||0,dur:+G.lv.MatchFlight||0,at});
     G.events.push({type:'match',color:g.color,n,ammo,bonus,combo,chain:G.chain,special,at,praise:praise(n),cells:g.cells.map(x=>x.slice())});
   }
@@ -353,12 +362,12 @@ function placeCannon(G,f){
   countLocks(G,f.color,'match');
   const tcol=f.special==='rainbow'?'*':f.color;
   if(available(G,tcol)<=0){G.events.push({type:'notarget',color:f.color,at:f.at});addPower(G,f.ammo,'notarget');return;}
-  if(f.special){
-    const j=[...Array(RACK).keys()].find(i=>!G.rack[i]);
-    if(j==null){G.stats.lost++;G.stats.lostAmmo+=f.ammo;G.events.push({type:'lost',color:f.color,ammo:f.ammo});addPower(G,f.ammo,'lost');return;}
-    G.rack[j]={color:f.color,ammo:f.ammo,cd:0,id:++G.stats.cannons,pop:1,special:f.special};G.stats.specials++;
-    G.events.push({type:'special',rack:j,kind:f.special,color:f.color});
-    return;
+  if(f.special){   // Rainbow cannon: own slot, never merges
+    const j=G.slots.findIndex(s=>s.lock===0&&!s.cannon);
+    if(j<0){G.stats.lost++;G.stats.lostAmmo+=f.ammo;G.events.push({type:'lost',color:f.color,ammo:f.ammo});addPower(G,f.ammo,'lost');return;}
+    G.slots[j].cannon={color:f.color,ammo:f.ammo,cd:0,id:++G.stats.cannons,pop:1,special:f.special};G.stats.specials++;
+    G.events.push({type:'special',slot:j,kind:f.special,color:f.color});
+    countLocks(G,f.color,'enter');return;
   }
   const m=G.slots.findIndex(s=>s.cannon&&!s.cannon.special&&s.cannon.color===f.color&&s.cannon.ammo>0);
   if(m>=0){const k=G.slots[m].cannon;k.ammo+=f.ammo;k.pop=1;G.stats.merges++;G.events.push({type:'merge',slot:m,color:f.color});countLocks(G,f.color,'enter');return;}
@@ -393,28 +402,36 @@ function updateCannons(G,dt){
       else{k.cd=0;k.waiting=true;}}
     if(k.ammo<=0)s.cannon=null;   // leaves at 0 ammo
   });
-  for(let j=0;j<RACK;j++){const k=G.rack[j];if(!k)continue;
-    k.pop=Math.max(0,(k.pop||0)-dt*3.5);
-    const tc=k.special==='rainbow'?'*':k.color;
-    if(available(G,tc)<=0){addPower(G,k.ammo,'gone');G.rack[j]=null;continue;}
-    k.cd-=dt;
-    if(k.cd<=0){const a=pickTarget(G,tc);
-      if(a){fireShot(G,a,k.special==='rainbow'?a.color:k.color,{rack:j},0,k.special);k.ammo--;k.recoil=1;k.cd+=fire;if(k.cd<0)k.cd=0;k.waiting=false;G.events.push({type:'fire',rack:j});}
-      else{k.cd=0;k.waiting=true;}}
-    if(k.ammo<=0)G.rack[j]=null;
-  }
 }
 function updateShots(G,dt){
   for(let i=G.shots.length-1;i>=0;i--){const s=G.shots[i];s.t-=dt;
     if(s.t<=0){const a=G.ants[s.ant];a.pend--;
-      hitAnt(G,a,s.color);
-      if(s.kind==='line'){let n=0;
-        for(let r=a.r-1;r>=0&&n<PIERCE;r--){const id=G.cellAnt[r][a.c];if(id<0)continue;const b=G.ants[id];if(!b.alive||b.queen)continue;if(b.color!==s.color)break;hitAnt(G,b,s.color,'pierce');n++;}
-        G.events.push({type:'pierce',ant:a.id,n});}
+      hitAnt(G,a,s.color,s.kind==='line'?'pierce':s.kind==='bomb'?'blast':null);
+      if(s.kind==='line'){let n=0;   // the target took the first hit; go up the column
+        for(let r=a.r-1;r>=0&&n<LINE_DEPTH-1;r--){const id=G.cellAnt[r][a.c];if(id<0)continue;const b=G.ants[id];if(!b.alive)continue;hitAnt(G,b,b.color,'pierce');n++;}
+        G.events.push({type:'pierce',ant:a.id,n:n+1});}
       if(s.kind==='bomb'){
         for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(!dr&&!dc)continue;const id=(G.cellAnt[a.r+dr]||[])[a.c+dc];if(id==null||id<0)continue;const b=G.ants[id];if(b.alive&&b!==a)hitAnt(G,b,b.color,'blast');}
         G.events.push({type:'blast',ant:a.id});}
       G.shots.splice(i,1);}}
+}
+/* B: thrown bombs fly from the match straight up to the ants (any color, front or not) */
+function throwShot(G,a,kind,at,delay){a.pend++;G.stats.shots++;
+  G.shots.push({ant:a.id,color:a.color,kind,t:THROW_FLIGHT+(delay||0),dur:THROW_FLIGHT,delay:delay||0,origin:{board:at},throw:true});}
+function throwLine(G,at){
+  const fronts=[];
+  for(let c=0;c<G.C;c++){const id=frontOfCol(G,c);if(id<0)continue;const a=G.ants[id];if(!inView(G,a))continue;fronts.push({a,c,y:bottomRow(a),k:G.rng()});}
+  fronts.sort((p,q)=>q.y-p.y||p.k-q.k);
+  const pick=fronts.slice(0,LINE_BOMBS);
+  pick.forEach((f,i)=>throwShot(G,f.a,'line',at,i*0.08));
+  return pick.length;
+}
+function throwBomb(G,at){
+  const vis=G.ants.filter(a=>a.alive&&inView(G,a));if(!vis.length)return 0;
+  const low=Math.max(...vis.map(bottomRow));
+  const cand=vis.filter(a=>bottomRow(a)>=low-(BOMB_ROWS-1));
+  const a=cand[Math.floor(G.rng()*cand.length)];
+  throwShot(G,a,'bomb',at,0);return 1;
 }
 function hitAnt(G,a,color,how){
   if(!a.alive)return;a.hp--;
@@ -534,7 +551,7 @@ export function botMove(G){
         if(x.kind==='choco')bonus+=1.5;
         if(x.kind==='tray'){const t=G.trays[x.tray];if(t.bottles.some(q=>!q.broken&&q.color===g.color))bonus+=4;}}
       const sp=G.opt.specials&&groupKind(g.cells);
-      const room=sp?G.rack.filter(Boolean).length<RACK:(free>0||sameIn(g.color)>=1);
+      const room=sp==='rainbow'?free>0:sp?true:(free>0||sameIn(g.color)>=1);
       if(sp)s+=2;
       const front=pickTarget(G,g.color)?3:0;
       const unlock=G.slots.some(q=>q.lock>0&&q.lockColor===g.color)?4:0;   // a match of a color lock's color counts it down
