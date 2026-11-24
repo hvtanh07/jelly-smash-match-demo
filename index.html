@@ -38,7 +38,6 @@ details b{color:var(--fg);font-weight:600}
 <div class="wrap">
   <div class="bar">
     <label for="lvl">Level <select id="lvl"></select></label>
-    <button id="oA" type="button" aria-pressed="true" title="A: match nào cũng có giá trị (thanh Power)">A Power</button>
     <button id="oB" type="button" aria-pressed="true" title="B: match 4, 5, T/L ra pháo đặc biệt">B Pháo ĐB</button>
     <button id="oC" type="button" aria-pressed="true" title="C: hiệu ứng, âm thanh, combo">C Feel</button>
     <span class="spacer"></span>
@@ -60,7 +59,8 @@ details b{color:var(--fg);font-weight:600}
     <summary>Luật trong bản demo này</summary>
     <ul>
       <li><b>Cơ bản (GDD 1.1, 1.2):</b> đổi chỗ 2 khối cạnh nhau để tạo hàng 3+. Mỗi nhóm match ra 1 pháo cùng màu, đạn = 2n − 3. Pháo cùng màu gộp đạn. Pháo tự bắn khối cùng màu ở hàng trước, trong khung nhìn. Lưới khối đi xuống từ lần swap đầu, chạm vạch đỏ là thua.</li>
-      <li><b>A Power:</b> mỗi match +1 Power. Match không có mục tiêu, pháo mất vì slot đầy, hoặc pháo còn đạn khi màu đã hết: toàn bộ số đạn đó đổ vào Power. Đầy 40: Super, 8 phát cầu vồng bắn các khối hàng trước, thấp nhất trước.</li>
+      <li><b>Hướng dẫn (level 1):</b> 4 bước, mỗi bước game dừng, chỉ cho đổi đúng 2 khối được chỉ: match 3 đúng màu kiến, hàng 4 ra bom xuyên, chữ T ra bom, hàng 5 ra pháo cầu vồng. Có nút bỏ qua.</li>
+      <li hidden><b>A Power (tạm bỏ 2026-11-24):</b> mỗi match +1 Power. Match không có mục tiêu, pháo mất vì slot đầy, hoặc pháo còn đạn khi màu đã hết: toàn bộ số đạn đó đổ vào Power. Đầy 40: Super, 8 phát cầu vồng bắn các khối hàng trước, thấp nhất trước.</li>
       <li><b>B Đặc biệt:</b> hàng thẳng 4 ném thẳng lên 3 trái bom xuyên vào 3 cột có khối thấp nhất, mỗi trái trúng 3 khối thấp nhất của cột (mọi màu). Hình T hoặc L ném 1 trái bom vào 1 khối ngẫu nhiên trong 3 hàng dưới cùng đang thấy, nổ 3×3 (mọi màu). Hàng thẳng 5+ ra Pháo cầu vồng (5 đạn, bắn mọi màu), vào chung hàng slot với pháo thường, không gộp.</li>
       <li><b>C Feel:</b> khối bay vào pháo, pháo giật khi bắn, số đạn nảy, khối trúng đạn phồng rồi vỡ, rung màn hình khi match to, chữ Combo, âm thanh và rung máy. Combo dây chuyền: mỗi bước +1 đạn.</li>
       <li><b>Element:</b> Chocolate (từ L7): match cạnh chocolate để bóc 1 lớp. Slot khóa màu (từ L12): match đúng màu ổ khóa để đếm lùi, về 0 thì mở slot. Ô trống trên board theo hình level.</li>
@@ -73,23 +73,25 @@ details b{color:var(--fg);font-weight:600}
 import {newGame,step,trySwap,canSwap,findMove} from './js/engine.js';
 import {LEVELS} from './js/levels.js';
 import {LW,layoutOf,draw,cellAt,newUi,handleEvent,updateFx,Sound} from './js/render.js';
+import {STEPS,plant,isStepSwap,drawFtue} from './js/ftue.js';
 
 const $=s=>document.querySelector(s);
 const store={get(k,d){try{const v=localStorage.getItem('jsd.'+k);return v==null?d:v;}catch(e){return d;}},set(k,v){try{localStorage.setItem('jsd.'+k,v);}catch(e){}}};
 const cv=$('#cv'),ctx=cv.getContext('2d'),stage=$('#stage'),ov=$('#ov');
-const opt={power:store.get('A','1')==='1',specials:store.get('B','1')==='1',feel:store.get('C','1')==='1'};
+const opt={power:false,specials:store.get('B','1')==='1',feel:store.get('C','1')==='1'};
 Sound.on=store.get('snd','1')==='1';
 const TIPS={7:'Ghép cạnh chocolate<br>để phá vỡ.',12:'Ghép đúng màu ổ khóa<br>để mở slot.'};
 const seenTip=new Set();
 LEVELS.forEach((l,i)=>{const o=document.createElement('option');o.value=i;o.textContent=String(i+1)+(l.Difficulty?' (khó)':'');$('#lvl').appendChild(o);});
-let G=null,L=null,ui=newUi(),lvlIdx=0,drag=null,idle=0,paused=false;
+let G=null,L=null,ui=newUi(),lvlIdx=0,drag=null,idle=0,paused=false,ftue=null;
 
-function syncOpt(){[['oA','power'],['oB','specials'],['oC','feel']].forEach(([id,k])=>$('#'+id).setAttribute('aria-pressed',String(opt[k])));$('#snd').setAttribute('aria-pressed',String(Sound.on));$('#snd').textContent=Sound.on?'🔊':'🔇';}
+function syncOpt(){[['oB','specials'],['oC','feel']].forEach(([id,k])=>$('#'+id).setAttribute('aria-pressed',String(opt[k])));$('#snd').setAttribute('aria-pressed',String(Sound.on));$('#snd').textContent=Sound.on?'🔊':'🔇';}
 function start(i){
   lvlIdx=Math.max(0,Math.min(LEVELS.length-1,i));store.set('level',lvlIdx);$('#lvl').value=lvlIdx;
   const lv=JSON.parse(JSON.stringify(LEVELS[lvlIdx]));
   G=newGame(lv,{power:opt.power,specials:opt.specials,combo:opt.feel,chocoStarves:true});
   L=layoutOf(G,opt);ui=newUi();idle=0;drag=null;ov.hidden=true;paused=false;size();
+  ftue=lvlIdx===0?{step:0,last:opt.specials?STEPS.length-1:0,phase:'wait',t:0}:null;
   const tip=TIPS[lvlIdx+1];
   if(tip&&!seenTip.has(lvlIdx+1)){seenTip.add(lvlIdx+1);showOverlay('Element mới',`<span class="tip">${tip}</span>`,'tip');}
 }
@@ -110,14 +112,20 @@ $('#ovRetry').addEventListener('click',()=>start(lvlIdx));
 $('#ovNext').addEventListener('click',()=>{if(ov.dataset.kind==='tip'){ov.hidden=true;paused=false;return;}start(lvlIdx+1);});
 $('#restart').addEventListener('click',()=>start(lvlIdx));
 $('#lvl').addEventListener('change',e=>start(+e.target.value));
-[['oA','power','A'],['oB','specials','B'],['oC','feel','C']].forEach(([id,k,s])=>$('#'+id).addEventListener('click',()=>{opt[k]=!opt[k];store.set(s,opt[k]?'1':'0');syncOpt();start(lvlIdx);}));
+[['oB','specials','B'],['oC','feel','C']].forEach(([id,k,s])=>$('#'+id).addEventListener('click',()=>{opt[k]=!opt[k];store.set(s,opt[k]?'1':'0');syncOpt();start(lvlIdx);}));
 $('#snd').addEventListener('click',()=>{Sound.on=!Sound.on;store.set('snd',Sound.on?'1':'0');Sound.init();syncOpt();});
 
 function toLogical(e){const r=cv.getBoundingClientRect();return {x:(e.clientX-r.left)/r.width*LW,y:(e.clientY-r.top)/r.height*L.H};}
-function doSwap(a,b){if(G&&!paused&&canSwap(G,a,b)){trySwap(G,a,b);ui.hint=null;idle=0;}}
+function doSwap(a,b){
+  if(!G||paused)return;
+  if(ftue&&ftue.phase==='pause'){if(!isStepSwap(ftue,a,b)||!canSwap(G,a,b))return;trySwap(G,a,b);ftue.phase='run';ftue.t=0;ui.hint=null;idle=0;return;}
+  if(ftue)return;
+  if(canSwap(G,a,b)){trySwap(G,a,b);ui.hint=null;idle=0;}}
 cv.addEventListener('pointerdown',e=>{
   Sound.init();if(Sound.ctx&&Sound.ctx.state==='suspended')Sound.ctx.resume();
-  if(!G||G.over||paused)return;const p=toLogical(e),cell=cellAt(G,L,p.x,p.y);if(!cell)return;
+  if(!G||G.over||paused)return;const p=toLogical(e);
+  if(ftue&&ftue.phase==='pause'&&ftue.skip){const k=ftue.skip;if(p.x>=k.x&&p.x<=k.x+k.w&&p.y>=k.y&&p.y<=k.y+k.h){ftue=null;return;}}
+  const cell=cellAt(G,L,p.x,p.y);if(!cell)return;
   cv.setPointerCapture(e.pointerId);
   if(ui.sel&&Math.abs(ui.sel[0]-cell[0])+Math.abs(ui.sel[1]-cell[1])===1){const a=ui.sel;ui.sel=null;doSwap(a,cell);drag=null;return;}
   drag={cell,x:p.x,y:p.y,done:false};ui.sel=cell;
@@ -134,23 +142,30 @@ function trackAmmo(){
   const look=k=>{if(!k)return;const prev=ui.ammoSeen.get(k.id);if(prev!=null&&k.ammo>prev)ui.bumps.set(k.id,1);seen.set(k.id,k.ammo);};
   G.slots.forEach(s=>look(s.cannon));(G.rack||[]).forEach(look);ui.ammoSeen=seen;
 }
-const api={get G(){return G;},start,opt,timeScale:1};window.__jelly=api;
+const api={get G(){return G;},get ftue(){return ftue;},start,opt,timeScale:1,doSwap:(a,b)=>doSwap(a,b)};window.__jelly=api;
 let last=performance.now();
 function frame(now){
   const dt=Math.min(0.05,(now-last)/1000);last=now;
-  if(G&&!paused){
+  if(G&&ftue&&!paused&&!G.over){
+    const calm=G.state==='idle'&&!G.flights.length&&!G.shots.some(s=>s.throw);
+    if(ftue.phase==='wait'||ftue.phase==='run'){ftue.t=calm?ftue.t+dt:0;
+      if(ftue.phase==='run'&&ftue.t>1.0){if(ftue.step>=ftue.last){ftue=null;ui.pops.push({x:LW/2,y:L.boardTop+L.bc*G.BH/2,text:'Giờ tự chơi nhé!',col:'#ffd93d',age:0,size:24,sub:'',life:1.8,big:true});}else{ftue.step++;ftue.phase='wait';ftue.t=0.6;}}
+      if(ftue&&ftue.phase==='wait'&&ftue.t>0.6){const r=plant(G,ftue.step);if(r){Object.assign(ftue,r,{phase:'pause'});}else if(ftue.step<ftue.last){ftue.step++;}else ftue=null;}}
+  }
+  if(G&&!paused&&!(ftue&&ftue.phase==='pause')){
     let left=dt*api.timeScale;
     while(left>1e-6&&!G.over){const h=Math.min(1/60,left);left-=h;step(G,h);
       for(const ev of G.events)handleEvent(G,L,ui,ev,opt);G.events.length=0;}
     trackAmmo();
-    if(G.state==='idle'&&!G.over){idle+=dt;if(idle>5&&!ui.hint)ui.hint=findMove(G);}
+    if(G.state==='idle'&&!G.over&&!ftue){idle+=dt;if(idle>5&&!ui.hint)ui.hint=findMove(G);}
     if(G.over&&ov.hidden&&!G._shown){G._shown=true;const s=G.stats,left=G.ants.filter(a=>a.alive).length;
       setTimeout(()=>{if(G&&G.over)showOverlay(G.over==='win'?'Thắng!':'Thua rồi',
         G.over==='win'?`Level ${lvlIdx+1} xong sau ${Math.round(G.t)} giây. ${s.matches} match, ${s.specials} pháo đặc biệt, ${s.supers} lần Super.`
                       :`Khối chạm vạch đỏ. Còn ${left}/${G.totalAnts} khối.`,G.over);},600);}
   }
   updateFx(ui,dt);
-  if(G){ctx.setTransform(cv._k||1,0,0,cv._k||1,0,0);draw(ctx,G,L,ui,{...opt,levelNo:lvlIdx+1});}
+  if(G){ctx.setTransform(cv._k||1,0,0,cv._k||1,0,0);draw(ctx,G,L,ui,{...opt,levelNo:lvlIdx+1,ftue:!!ftue});
+    if(ftue&&ftue.phase==='pause')ftue.skip=drawFtue(ctx,G,L,ftue,ui.t);}
   requestAnimationFrame(frame);
 }
 syncOpt();
@@ -158,6 +173,6 @@ let s0=+store.get('level',0);if(!(s0>=0&&s0<LEVELS.length))s0=0;
 start(s0);
 if(document.fonts&&document.fonts.load)document.fonts.load('600 16px Fredoka').catch(()=>{});
 requestAnimationFrame(frame);
-$('#ver').textContent='Bản thử A+B+C, 2026-11-24. Bản demo cũ: legacy.html';
+$('#ver').textContent='Bản thử B+C (Power tạm bỏ), hướng dẫn ở level 1, 2026-11-24. Bản demo cũ: legacy.html';
 </script>
 </body></html>

@@ -263,7 +263,7 @@ export function draw(g,G,L,ui,opt){
     if(p.text)label(g,p.text,0,0,p.text.length>16?13:p.size,p.col,'rgba(23,12,40,.92)');
     if(p.sub)label(g,p.sub,0,p.text?p.size*0.85:0,14,'#fff','rgba(23,12,40,.92)');
     g.restore();g.globalAlpha=1;}
-  if(!G.started&&!G.over){const y=L.boardTop+L.bc*G.BH/2;rr(g,LW/2-125,y-20,250,40,20);g.fillStyle='rgba(23,12,40,.82)';g.fill();
+  if(!G.started&&!G.over&&!opt.ftue){const y=L.boardTop+L.bc*G.BH/2;rr(g,LW/2-125,y-20,250,40,20);g.fillStyle='rgba(23,12,40,.82)';g.fill();
     label(g,'Đổi chỗ 2 khối để tạo hàng 3',LW/2,y,14,'#fff',null,600);}
   if(fx&&ui.flash>0){g.globalAlpha=ui.flash*0.5;g.fillStyle=ui.flashCol;g.fillRect(-20,-20,LW+40,L.H+40);g.globalAlpha=1;}
   g.restore();
