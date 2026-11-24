@@ -11,16 +11,16 @@ const line=(r,c0,n)=>Array.from({length:n},(_,i)=>[r,c0+i]);
 export const STEPS=[
   {id:'match3',S:line(5,2,3),b:[5,3],a:[6,3],
     title:'Bước 1/4: Match 3',
-    text:k=>`Kéo khối ${NAME[k]||k} sáng lên vào chỗ trống để xếp 3 khối ${NAME[k]||k} thành hàng. Mỗi hàng 3 tạo 1 pháo ${NAME[k]||k}. Pháo tự bắn những con kiến ${NAME[k]||k} đang ở hàng trước.`},
+    text:k=>`Ghép 3 khối ${NAME[k]||k} để tạo pháo ${NAME[k]||k}. Pháo tự bắn kiến ${NAME[k]||k} ở hàng trước.`},
   {id:'line4',S:line(5,1,4),b:[5,2],a:[4,2],
     title:'Bước 2/4: Hàng 4 = Bom xuyên',
-    text:()=>'Xếp 4 khối cùng màu thành hàng thẳng. Bạn ném 3 trái bom xuyên vào 3 cột có kiến thấp nhất. Mỗi trái trúng 3 con kiến, màu nào cũng trúng.'},
+    text:()=>'Ghép 4 khối thành hàng thẳng để ném 3 bom xuyên vào 3 cột kiến thấp nhất. Mỗi trái trúng 3 kiến, mọi màu.'},
   {id:'tshape',S:[[4,2],[4,3],[4,4],[5,3],[6,3]],b:[4,3],a:[3,3],
     title:'Bước 3/4: Chữ T = Bom',
-    text:()=>'Xếp 5 khối cùng màu thành hình chữ T. Bạn ném 1 trái bom vào đám kiến gần hàng dưới cùng. Bom nổ một vùng 3×3, màu nào cũng trúng.'},
+    text:()=>'Ghép 5 khối thành chữ T để ném 1 bom vào kiến gần hàng dưới. Bom nổ 3×3, mọi màu.'},
   {id:'line5',S:line(5,1,5),b:[5,3],a:[4,3],
     title:'Bước 4/4: Hàng 5 = Pháo cầu vồng',
-    text:()=>'Xếp 5 khối cùng màu thành hàng thẳng để tạo Pháo cầu vồng. Pháo này vào hàng slot và bắn được kiến mọi màu.'},
+    text:()=>'Ghép 5 khối thành hàng thẳng để tạo pháo cầu vồng. Pháo bắn được kiến mọi màu.'},
 ];
 const key=([r,c])=>r*100+c;
 
