@@ -1,0 +1,17 @@
+# Bot (greedy, 0.5 s per move), 16 seeds per level. off = original rules, on = A+B+C. S = Super blasts per game, P = special cannons per game.
+level                 off                on
+L1     100%  20s S0.0 P0.0100%  18s S2.1 P8.8
+L2     100%  26s S0.0 P0.0100%  24s S2.1 P9.3
+L3     100%  28s S0.0 P0.0100%  26s S2.4 P8.7
+L4      81%  48s S0.0 P0.0100%  37s S1.3 P7.9
+L5     100%  43s S0.0 P0.0100%  40s S1.8 P7.8
+L6      94%  51s S0.0 P0.0100%  39s S1.9 P10.5
+L7     100%  48s S0.0 P0.0100%  33s S1.7 P7.6
+L8      69%  41s S0.0 P0.0100%  37s S2.4 P11.0
+L9      63%  48s S0.0 P0.0100%  35s S1.9 P10.3
+L10     63%  74s S0.0 P0.0100%  62s S2.1 P10.5
+L11     69%  55s S0.0 P0.0100%  43s S1.8 P7.6
+L12     94%  48s S0.0 P0.0100%  34s S1.3 P8.0
+L13    100%  43s S0.0 P0.0100%  31s S2.3 P9.4
+L14     88%  48s S0.0 P0.0100%  40s S1.8 P8.1
+L15     31%  58s S0.0 P0.0100%  46s S1.8 P7.9

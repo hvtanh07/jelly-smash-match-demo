@@ -1,28 +1,24 @@
-# Jelly Smash Match (demo)
+# Jelly Smash (demo)
 
-Demo chơi được, dựa trên GDD Jelly Smash (https://hvtanh07.github.io/gdd-jelly-smash/) với 2 thay đổi:
-
-- Lối chơi chính đổi thành swap match-3: đổi chỗ 2 khối cạnh nhau để tạo hàng 3+ cùng màu.
-- Không còn cannon đặt sẵn. Có 1 hàng 5 slot chờ: mỗi lần match sinh 1 cannon cùng màu vào slot trống, bắn hết đạn thì cannon biến mất.
-
-Đạn của mỗi cannon = n (số khối của nhóm match), thay cho công thức GDD 10 + 5 × (n − 3).
-
-Giữ nguyên theo GDD: cannon chỉ bắn khối cùng màu ở hàng đầu (khối thấp nhất mỗi cột) và đang nằm trong khung nhìn thấy, không bắn xuyên, khối thấp nhất bắn trước (cùng độ cao thì trái sang phải), không có mục tiêu thì chờ; target grid trượt xuống từ lần swap đầu, chạm vạch đỏ là thua.
+Demo chơi được, dựa trên GDD Jelly Smash (https://hvtanh07.github.io/gdd-jelly-smash/).
 
 Chơi: https://hvtanh07.github.io/jelly-smash-match-demo/
 
-Khi khung target nhìn thấy còn dưới 8 khối, hoặc grid chỉ phủ dưới 4 hàng của khung, grid đi xuống nhanh gấp 5. Không tăng tốc khi khối thấp nhất đã cách vạch đỏ từ 2 hàng trở xuống, hoặc khi hàng trên cùng của level đã lộ ra.
+## Bản 2026-11-24: thử A+B+C
 
-Khi trong slot có 3 cannon cùng màu, chúng gộp thành 1 cannon (slot trái nhất) với đạn bằng tổng cả 3.
+- Luật gốc theo GDD 1.1, 1.2, 1.4: swap match-3, mỗi match ra 1 pháo, đạn = 2n − 3, pháo cùng màu gộp đạn, slot đầy thì mất pháo, pháo tự bắn khối hàng trước trong khung nhìn.
+- Level 1–15 và element của chúng (Chocolate từ L7, slot khóa màu từ L12, ô trống theo hình board) lấy từ Level Builder (`hvtanh07/jelly-smash-level-builder`, `src/data/levels.json`), ở `js/levels.js`.
+- A Power: mỗi match +1. Match không có mục tiêu, pháo mất vì slot đầy, pháo còn đạn khi màu đã hết: số đạn đó vào Power. Đầy 40 thì Super, 8 phát cầu vồng.
+- B Pháo đặc biệt (kệ riêng 3 chỗ, không chiếm slot): thẳng 4 = Pháo xuyên (3 đạn, mỗi phát bắn thêm tối đa 3 khối cùng màu phía sau). Thẳng 5+ = Pháo cầu vồng (5 đạn, mọi màu). T/L = Pháo bom (3 đạn, nổ 3×3).
+- C Feel: hiệu ứng, âm thanh, rung máy, combo dây chuyền (+1 đạn mỗi bước).
+- Nút A, B, C trên thanh để tắt từng phần và so với luật gốc.
 
-Sau mỗi match, game quét các màu ở hàng dưới cùng target grid và cố tạo nước match cho từng màu đó khi khối mới rơi vào (tối thiểu luôn có 1 màu có nước đi).
+Code: `index.html` (UI), `js/engine.js` (luật, fork từ engine của Level Builder), `js/render.js` (vẽ + feel), `js/format.js`, `js/levels.js`. Không cần build. Bản demo cũ: `legacy.html`.
 
-Target grid: level 1 9×16, level 2 10×20, level 3 11×24, level 4 12×28 (cột × hàng). Board match-3 vẫn 7×7.
+## Bot
 
-Toàn bộ game nằm trong `index.html` (canvas, không cần build). Thanh chọn trên đầu cho đổi luật khi slot đầy (mặc định: mất lượt cannon). Cannon kẹt (còn đạn, không có mục tiêu) đứng chờ, không có cách bỏ.
+`node playtest/sim.mjs [số lần]` chạy bot không cần trình duyệt, so luật gốc với A+B+C. Kết quả: `playtest/results-2026-11-24-abc.txt`.
 
-## Bot playtest
-
-`node playtest/bot.js <random|smart> <n|small|gdd>` (cần Playwright). Kết quả lần chạy 16/11/2026 ở `playtest/results-2026-11-16.txt`.
+Bot cũ cho `legacy.html`: `node playtest/bot.js <random|smart> <n|small|gdd>` (cần Playwright).
 
 Trang có meta `noindex`/`noai`. Repo này public.
