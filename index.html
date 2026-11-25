@@ -63,7 +63,7 @@ details b{color:var(--fg);font-weight:600}
       <li hidden><b>A Power (tạm bỏ 2026-11-24):</b> mỗi match +1 Power. Match không có mục tiêu, pháo mất vì slot đầy, hoặc pháo còn đạn khi màu đã hết: toàn bộ số đạn đó đổ vào Power. Đầy 40: Super, 8 phát cầu vồng bắn các khối hàng trước, thấp nhất trước.</li>
       <li><b>B Đặc biệt:</b> hàng thẳng 4 ném thẳng lên 3 trái bom xuyên vào 3 cột có khối thấp nhất, mỗi trái trúng 3 khối thấp nhất của cột (mọi màu). Hình T hoặc L ném 1 trái bom vào 1 khối ngẫu nhiên trong 3 hàng dưới cùng đang thấy, nổ 3×3 (mọi màu). Hàng thẳng 5+ ra Pháo cầu vồng (5 đạn, bắn mọi màu), vào chung hàng slot với pháo thường, không gộp.</li>
       <li><b>C Feel:</b> khối bay vào pháo, pháo giật khi bắn, số đạn nảy, khối trúng đạn phồng rồi vỡ, rung màn hình khi match to, chữ Combo, âm thanh và rung máy. Combo dây chuyền: mỗi bước +1 đạn.</li>
-      <li><b>Element:</b> Chocolate (từ L7): match cạnh chocolate để bóc 1 lớp. Slot khóa màu (từ L12): match đúng màu ổ khóa để đếm lùi, về 0 thì mở slot. Ô trống trên board theo hình level.</li>
+      <li><b>Element:</b> Chocolate (từ L7): match cạnh chocolate để bóc 1 lớp. Slot khóa (từ L12): trên board luôn có 1 khối mang chìa khóa (không bao giờ là chocolate). Match khối đó thì slot khóa có số thấp nhất −1, rồi chìa mới xuất hiện ở khối ngẫu nhiên khác, cho đến khi mở hết slot. Ô trống trên board theo hình level.</li>
       <li>Tắt A, B, C ở thanh trên để so với luật gốc. Level 1 đến 15 lấy từ Level Builder.</li>
     </ul>
   </details>
@@ -80,7 +80,7 @@ const store={get(k,d){try{const v=localStorage.getItem('jsd.'+k);return v==null?
 const cv=$('#cv'),ctx=cv.getContext('2d'),stage=$('#stage'),ov=$('#ov');
 const opt={power:false,specials:store.get('B','1')==='1',feel:store.get('C','1')==='1'};
 Sound.on=store.get('snd','1')==='1';
-const TIPS={7:'Ghép cạnh chocolate<br>để phá vỡ.',12:'Ghép đúng màu ổ khóa<br>để mở slot.'};
+const TIPS={7:'Ghép cạnh chocolate<br>để phá vỡ.',12:'Ghép khối có chìa khóa<br>để mở slot.'};
 const seenTip=new Set();
 LEVELS.forEach((l,i)=>{const o=document.createElement('option');o.value=i;o.textContent=String(i+1)+(l.Difficulty?' (khó)':'');$('#lvl').appendChild(o);});
 let G=null,L=null,ui=newUi(),lvlIdx=0,drag=null,idle=0,paused=false,ftue=null;

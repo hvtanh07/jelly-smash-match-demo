@@ -36,7 +36,7 @@ export const praise=n=>n>=10?'Epic':n>=8?'Extreme':n>=6?'Amazing':n>=5?'Great':'
 export function newGame(lv,opt={}){
   const rng=mulberry32(opt.seed==null?(Math.random()*1e9)|0:opt.seed);
   const rows=lv.WallRows||[],R=rows.length,C=Math.max(0,...rows.map(r=>r.length));
-  const G={lv,rng,opt:{chocoLayers:3,chocoStarves:true,power:true,specials:true,combo:true,...opt},t:0,started:false,over:null,events:[],
+  const G={lv,rng,opt:{chocoLayers:3,chocoStarves:true,power:true,specials:true,combo:true,keys:true,...opt},t:0,started:false,over:null,events:[],
     R,C,wy:+lv.WallStartVisibleRows||0,boost:1,ants:[],cellAnt:[],
     BW:+lv.BoardWidth,BH:+lv.BoardHeight,cells:[],trays:[],state:'idle',timer:0,swapPair:null,holdGroups:null,
     slots:[],flights:[],shots:[],volleys:[],hint:null,goodCols:'',power:0,powerMax:POWER_MAX,chain:0,rack:[],
@@ -67,6 +67,7 @@ export function newGame(lv,opt={}){
     else row.push({kind:'cube',color:preset,preset:!!preset});
   }G.cells.push(row);}
   fillBoard(G);
+  spawnKey(G);
   return G;
 }
 
@@ -281,6 +282,7 @@ function clearGroups(G){
         if(t.bottles.every(b=>b.broken)){t.gone=true;
           for(let y=0;y<2;y++)for(let x=0;x<2;x++)G.cells[t.r+y][t.c+x]={kind:'empty'};}}}
     const special=G.opt.specials?groupKind(g.cells):null;
+    if(G.opt.keys&&g.cells.some(([r,c])=>G.cells[r][c].key))useKey(G,g.cells.find(([r,c])=>G.cells[r][c].key));
     let sr=0,sc=0;g.cells.forEach(([r,c])=>{sr+=r;sc+=c;G.cells[r][c]={kind:'empty'};});
     G.stats.matches++;
     const combo=G.opt.combo&&G.chain>1?G.chain-1:0;
@@ -298,6 +300,7 @@ function clearGroups(G){
     G.events.push({type:'match',color:g.color,n,ammo,bonus,combo,chain:G.chain,special,at,praise:praise(n),cells:g.cells.map(x=>x.slice())});
   }
   gravity(G);
+  spawnKey(G);
   G.state='fall';G.timer=+G.lv.FallSeconds||0;
 }
 /* Cubes fall inside each column, through missing cells (#) above the column's first cell.
@@ -349,10 +352,32 @@ function gravity(G){
 }
 
 /* ---------- cannons ---------- */
+/* Key rule (2026-11-25): while a slot is locked, one cube on the board (never chocolate or a tray) carries a key.
+   Matching that cube takes 1 off the locked slot with the lowest count left (leftmost on a tie),
+   and a new key appears on another random cube. Keys stop once every slot is open. */
+const lockedSlots=G=>G.slots.filter(s=>s.lock>0);
+function spawnKey(G){
+  if(!G.opt.keys||!lockedSlots(G).length)return;
+  const cubes=[];
+  for(let r=0;r<G.BH;r++)for(let c=0;c<G.BW;c++){const x=G.cells[r][c];
+    if(x&&x.kind==='cube'){if(x.key)return;if(!x.dying)cubes.push(x);}}
+  if(!cubes.length)return;
+  const x=cubes[Math.floor(G.rng()*cubes.length)];x.key=true;x.keyPop=1;
+  G.events.push({type:'key-spawn'});
+}
+function useKey(G,at){
+  let j=-1;G.slots.forEach((s,i)=>{if(s.lock>0&&(j<0||s.lock<G.slots[j].lock))j=i;});
+  G.events.push({type:'key',slot:j,r:at[0],c:at[1]});
+  if(j<0)return;
+  G.slots[j].lock--;
+  if(G.slots[j].lock===0)G.events.push({type:'unlock',slot:j});
+}
+
 /* GDD 1.4 Locked Slot.
    Color lock (lockColor set): each match of that color counts it down by 1, even when its cannon is lost or has no target.
    Plain lock (no color, old rule): each cannon that reaches the slots counts it down by 1. */
 function countLocks(G,color,kind){
+  if(G.opt.keys)return;   // key rule replaces the old count-down
   G.slots.forEach((s,j)=>{if(!(s.lock>0))return;
     if(s.lockColor?(kind==='match'&&s.lockColor===color):kind==='enter'){s.lock--;if(s.lock===0)G.events.push({type:'unlock',slot:j});}});
 }
@@ -554,7 +579,8 @@ export function botMove(G){
       const room=sp==='rainbow'?free>0:sp?true:(free>0||sameIn(g.color)>=1);
       if(sp)s+=2;
       const front=pickTarget(G,g.color)?3:0;
-      const unlock=G.slots.some(q=>q.lock>0&&q.lockColor===g.color)?4:0;   // a match of a color lock's color counts it down
+      const unlock=G.opt.keys?(g.cells.some(([r,c])=>G.cells[r][c].key)?6:0)   // a match with the key opens a locked slot
+        :(G.slots.some(q=>q.lock>0&&q.lockColor===g.color)?4:0);   // old rule: a match of a color lock's color counts it down
       s+=(room&&need>0?Math.min(ammo+bonus,need)+front:(G.opt.power?0.5:-2))+bonus*0.5+unlock;
     }
     // lower matches shake more cubes loose

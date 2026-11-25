@@ -11,6 +11,7 @@ Chơi: https://hvtanh07.github.io/jelly-smash-match-demo/
 - Hướng dẫn level 1 (2026-11-24): 4 bước, game dừng ở mỗi bước, chỉ cho đổi đúng 2 khối được chỉ: match 3 đúng màu kiến, hàng 4 = bom xuyên, chữ T = bom, hàng 5 = pháo cầu vồng. Code ở `js/ftue.js`.
 - A Power (tạm bỏ khỏi demo từ 2026-11-24, code vẫn còn trong engine, `power:false`): mỗi match +1. Match không có mục tiêu, pháo mất vì slot đầy, pháo còn đạn khi màu đã hết: số đạn đó vào Power. Đầy 40 thì Super, 8 phát cầu vồng.
 - B Đặc biệt (bản 2, theo góp ý 2026-11-24): thẳng 4 = ném 3 bom xuyên vào 3 cột có khối thấp nhất, mỗi trái trúng 3 khối thấp nhất của cột. T/L = ném 1 bom vào 1 khối ngẫu nhiên trong 3 hàng dưới cùng, nổ 3×3. Thẳng 5+ = Pháo cầu vồng (5 đạn, mọi màu) vào chung hàng slot.
+- Slot khóa = chìa khóa (2026-11-25): level có slot khóa thì 1 khối ngẫu nhiên (không phải chocolate) mang chìa. Match khối đó: slot khóa có số thấp nhất −1 (bằng nhau thì slot bên trái), rồi chìa mới hiện ở khối ngẫu nhiên khác, đến khi mở hết slot. Thay luật đếm lùi theo màu cũ (`keys:false` để quay về luật cũ).
 - C Feel: hiệu ứng, âm thanh, rung máy, combo dây chuyền (+1 đạn mỗi bước).
 - Nút B, C trên thanh để tắt từng phần và so với luật gốc.
 
